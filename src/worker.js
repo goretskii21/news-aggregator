@@ -238,7 +238,10 @@ async function handleNews(request, env, ctx, forceFresh) {
   try {
     if (!forceFresh) {
       const cachedResponse = await caches.default.match(newsCacheRequest());
-      if (cachedResponse) return maybeNotModified(request, cachedResponse);
+      if (cachedResponse) {
+        if (isFreshNewsResponse(cachedResponse)) return maybeNotModified(request, cachedResponse);
+        ctx?.waitUntil?.(caches.default.delete(newsCacheRequest()));
+      }
 
       const cached = await readCachedNews(env);
       if (cached) {
@@ -616,8 +619,15 @@ function newsJson(payload, headers = {}) {
     "cache-control": API_CACHE_CONTROL,
     etag: createNewsEtag(payload),
     "content-length": String(new TextEncoder().encode(body).length),
+    "x-news-updated-at": payload.updatedAt || "",
     ...headers
   });
+}
+
+function isFreshNewsResponse(response) {
+  const updatedAt = response.headers.get("x-news-updated-at");
+  const updatedAtMs = updatedAt ? Date.parse(updatedAt) : 0;
+  return Number.isFinite(updatedAtMs) && Date.now() - updatedAtMs < CACHE_TTL_MS;
 }
 
 function text(body, status = 200, headers = {}) {

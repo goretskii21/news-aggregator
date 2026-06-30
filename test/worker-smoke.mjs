@@ -163,6 +163,30 @@ assert.equal(second.status, 200);
 assert.equal(env.NEWS_CACHE.getCount, kvGetsAfterFirst);
 assert.equal(rssFetches, rssFetchesAfterFirst);
 
+{
+  await globalThis.caches.default.put(
+    new Request("https://news-aggregator.internal/api/news"),
+    new Response(JSON.stringify({
+      updatedAt: "2026-06-30T10:00:00.000Z",
+      items: [{ id: "stale-cache-item", title: "Stale cache item" }]
+    }), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        "x-news-updated-at": "2026-06-30T10:00:00.000Z"
+      }
+    })
+  );
+
+  const staleCtx = createCtx();
+  const response = await worker.fetch(request("/api/news"), env, staleCtx);
+  await staleCtx.flush();
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.notEqual(payload.items[0].id, "stale-cache-item");
+  assert.ok(env.NEWS_CACHE.getCount > kvGetsAfterFirst);
+}
+
 const notModified = await worker.fetch(request("/api/news", {
   headers: { "if-none-match": first.headers.get("etag") }
 }), env, createCtx());
