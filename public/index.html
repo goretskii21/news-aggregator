@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Game News</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Игры + софт + железо + технологии</p>
+        <h1>Игровые новости</h1>
+      </div>
+      <button class="refresh" id="refreshButton" type="button" aria-label="Обновить новости">
+        <span aria-hidden="true">↻</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="controls" aria-label="Фильтры">
+        <div class="filter-row" aria-label="Категории">
+          <button class="chip category-chip active" type="button" data-category="all">Все</button>
+          <button class="chip category-chip" type="button" data-category="games">Игры</button>
+          <button class="chip category-chip" type="button" data-category="software">Софт</button>
+          <button class="chip category-chip" type="button" data-category="hardware">Железо</button>
+          <button class="chip category-chip" type="button" data-category="tech">Технологии</button>
+        </div>
+
+        <div class="filter-row" aria-label="Источники">
+          <button class="chip source-chip active" type="button" data-source="all">Все источники</button>
+          <button class="chip source-chip" type="button" data-source="PlayGround.ru">PlayGround</button>
+          <button class="chip source-chip" type="button" data-source="GoHa.ru">GoHa</button>
+          <button class="chip source-chip" type="button" data-source="Igromania.ru">Igromania</button>
+          <button class="chip source-chip" type="button" data-source="StopGame.ru">StopGame</button>
+          <button class="chip source-chip" type="button" data-source="VGTimes">VGTimes</button>
+          <button class="chip source-chip" type="button" data-source="IXBT.games">IXBT.games</button>
+          <button class="chip source-chip" type="button" data-source="DTF">DTF</button>
+          <button class="chip source-chip" type="button" data-source="3DNews">3DNews</button>
+          <button class="chip source-chip" type="button" data-source="iXBT">iXBT</button>
+          <button class="chip source-chip" type="button" data-source="Habr">Habr</button>
+          <button class="chip source-chip" type="button" data-source="OpenNET">OpenNET</button>
+          <button class="chip source-chip" type="button" data-source="SecurityLab">SecurityLab</button>
+          <button class="chip source-chip" type="button" data-source="Comss">Comss</button>
+          <button class="chip source-chip" type="button" data-source="4PDA">4PDA</button>
+          <button class="chip source-chip" type="button" data-source="CNews">CNews</button>
+          <button class="chip source-chip" type="button" data-source="GECID">GECID</button>
+          <button class="chip source-chip" type="button" data-source="Overclockers.ua">Overclockers.ua</button>
+        </div>
+      </section>
+
+      <section class="status" id="status" aria-live="polite">Загружаю новости...</section>
+      <section class="grid" id="newsGrid" aria-label="Список новостей"></section>
+    </main>
+
+    <template id="newsCardTemplate">
+      <article class="card">
+        <div class="meta">
+          <span class="source"></span>
+          <time></time>
+        </div>
+        <h2></h2>
+        <p></p>
+        <a class="more" target="_blank" rel="noopener noreferrer">Ещё</a>
+      </article>
+    </template>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
