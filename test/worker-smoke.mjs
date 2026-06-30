@@ -169,6 +169,12 @@ const notModified = await worker.fetch(request("/api/news", {
 assert.equal(notModified.status, 304);
 assert.equal(await notModified.text(), "");
 
+const weakNotModified = await worker.fetch(request("/api/news", {
+  headers: { "if-none-match": `W/${first.headers.get("etag")}` }
+}), env, createCtx());
+assert.equal(weakNotModified.status, 304);
+assert.equal(await weakNotModified.text(), "");
+
 {
   const response = await worker.fetch(request("/api/news?fresh=1"), env, createCtx());
   assert.equal(response.status, 403);

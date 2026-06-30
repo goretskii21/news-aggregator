@@ -640,7 +640,7 @@ function text(body, status = 200, headers = {}) {
 
 function maybeNotModified(request, response) {
   const etag = response.headers.get("etag");
-  if (etag && request.headers.get("if-none-match") === etag) {
+  if (etag && etagMatches(request.headers.get("if-none-match"), etag)) {
     return withSecurityHeaders(new Response(null, {
       status: 304,
       headers: {
@@ -650,6 +650,18 @@ function maybeNotModified(request, response) {
     }));
   }
   return withSecurityHeaders(response);
+}
+
+function etagMatches(ifNoneMatch, etag) {
+  if (!ifNoneMatch) return false;
+  return ifNoneMatch
+    .split(",")
+    .map((value) => normalizeEtag(value))
+    .some((value) => value === "*" || value === normalizeEtag(etag));
+}
+
+function normalizeEtag(value) {
+  return value.trim().replace(/^W\//i, "");
 }
 
 function createNewsEtag(payload) {
