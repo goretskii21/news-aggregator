@@ -2,12 +2,22 @@ const grid = document.querySelector("#newsGrid");
 const status = document.querySelector("#status");
 const template = document.querySelector("#newsCardTemplate");
 const refreshButton = document.querySelector("#refreshButton");
+const pageTitle = document.querySelector("#pageTitle");
 const categoryChips = [...document.querySelectorAll(".category-chip")];
 const sourceChips = [...document.querySelectorAll(".source-chip")];
+const sourceAllChip = sourceChips.find((chip) => chip.dataset.source === "all");
+
+const categoryTitles = {
+  all: "Новости",
+  games: "Игровые новости",
+  software: "Новости софта",
+  hardware: "Новости железа",
+  tech: "Новости технологий"
+};
 
 let items = [];
 let activeCategory = "all";
-let activeSource = "all";
+let activeSources = new Set();
 
 refreshButton.addEventListener("click", () => loadNews(true));
 
@@ -21,8 +31,16 @@ categoryChips.forEach((chip) => {
 
 sourceChips.forEach((chip) => {
   chip.addEventListener("click", () => {
-    activeSource = chip.dataset.source;
-    sourceChips.forEach((item) => item.classList.toggle("active", item === chip));
+    const source = chip.dataset.source;
+    if (source === "all") {
+      activeSources.clear();
+    } else if (activeSources.has(source)) {
+      activeSources.delete(source);
+    } else {
+      activeSources.add(source);
+    }
+
+    updateSourceChips();
     render();
   });
 });
@@ -50,9 +68,11 @@ async function loadNews(forceFresh = false) {
 }
 
 function render(updatedAt) {
+  pageTitle.textContent = categoryTitles[activeCategory] || categoryTitles.all;
+
   const filtered = items.filter((item) => {
     const matchesCategory = activeCategory === "all" || item.categories?.includes(activeCategory);
-    const matchesSource = activeSource === "all" || item.source === activeSource;
+    const matchesSource = !activeSources.size || activeSources.has(item.source);
     return matchesCategory && matchesSource;
   });
 
@@ -65,6 +85,20 @@ function render(updatedAt) {
 
   const updateText = updatedAt ? ` Обновлено ${formatDate(updatedAt)}.` : "";
   status.textContent = `${filtered.length} новостей из ${items.length}.${updateText}`;
+}
+
+function updateSourceChips() {
+  const allSourcesSelected = activeSources.size === 0;
+  sourceAllChip.classList.toggle("active", allSourcesSelected);
+  sourceAllChip.setAttribute("aria-pressed", String(allSourcesSelected));
+
+  sourceChips
+    .filter((chip) => chip.dataset.source !== "all")
+    .forEach((chip) => {
+      const isActive = activeSources.has(chip.dataset.source);
+      chip.classList.toggle("active", isActive);
+      chip.setAttribute("aria-pressed", String(isActive));
+    });
 }
 
 function createCard(item) {

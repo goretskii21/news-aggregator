@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Game News</title>
+    <title>Новости</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Игры + софт + железо + технологии</p>
-        <h1>Игровые новости</h1>
+        <p class="eyebrow">Новости</p>
+        <h1 id="pageTitle">Новости</h1>
       </div>
       <button class="refresh" id="refreshButton" type="button" aria-label="Обновить новости">
         <span aria-hidden="true">↻</span>
@@ -28,24 +28,24 @@
         </div>
 
         <div class="filter-row" aria-label="Источники">
-          <button class="chip source-chip active" type="button" data-source="all">Все источники</button>
-          <button class="chip source-chip" type="button" data-source="PlayGround.ru">PlayGround</button>
-          <button class="chip source-chip" type="button" data-source="GoHa.ru">GoHa</button>
-          <button class="chip source-chip" type="button" data-source="Igromania.ru">Igromania</button>
-          <button class="chip source-chip" type="button" data-source="StopGame.ru">StopGame</button>
-          <button class="chip source-chip" type="button" data-source="VGTimes">VGTimes</button>
-          <button class="chip source-chip" type="button" data-source="IXBT.games">IXBT.games</button>
-          <button class="chip source-chip" type="button" data-source="DTF">DTF</button>
-          <button class="chip source-chip" type="button" data-source="3DNews">3DNews</button>
-          <button class="chip source-chip" type="button" data-source="iXBT">iXBT</button>
-          <button class="chip source-chip" type="button" data-source="Habr">Habr</button>
-          <button class="chip source-chip" type="button" data-source="OpenNET">OpenNET</button>
-          <button class="chip source-chip" type="button" data-source="SecurityLab">SecurityLab</button>
-          <button class="chip source-chip" type="button" data-source="Comss">Comss</button>
-          <button class="chip source-chip" type="button" data-source="4PDA">4PDA</button>
-          <button class="chip source-chip" type="button" data-source="CNews">CNews</button>
-          <button class="chip source-chip" type="button" data-source="GECID">GECID</button>
-          <button class="chip source-chip" type="button" data-source="Overclockers.ua">Overclockers.ua</button>
+          <button class="chip source-chip active" type="button" data-source="all" aria-pressed="true">Все источники</button>
+          <button class="chip source-chip" type="button" data-source="PlayGround.ru" aria-pressed="false">PlayGround</button>
+          <button class="chip source-chip" type="button" data-source="GoHa.ru" aria-pressed="false">GoHa</button>
+          <button class="chip source-chip" type="button" data-source="Igromania.ru" aria-pressed="false">Igromania</button>
+          <button class="chip source-chip" type="button" data-source="StopGame.ru" aria-pressed="false">StopGame</button>
+          <button class="chip source-chip" type="button" data-source="VGTimes" aria-pressed="false">VGTimes</button>
+          <button class="chip source-chip" type="button" data-source="IXBT.games" aria-pressed="false">IXBT.games</button>
+          <button class="chip source-chip" type="button" data-source="DTF" aria-pressed="false">DTF</button>
+          <button class="chip source-chip" type="button" data-source="3DNews" aria-pressed="false">3DNews</button>
+          <button class="chip source-chip" type="button" data-source="iXBT" aria-pressed="false">iXBT</button>
+          <button class="chip source-chip" type="button" data-source="Habr" aria-pressed="false">Habr</button>
+          <button class="chip source-chip" type="button" data-source="OpenNET" aria-pressed="false">OpenNET</button>
+          <button class="chip source-chip" type="button" data-source="SecurityLab" aria-pressed="false">SecurityLab</button>
+          <button class="chip source-chip" type="button" data-source="Comss" aria-pressed="false">Comss</button>
+          <button class="chip source-chip" type="button" data-source="4PDA" aria-pressed="false">4PDA</button>
+          <button class="chip source-chip" type="button" data-source="CNews" aria-pressed="false">CNews</button>
+          <button class="chip source-chip" type="button" data-source="GECID" aria-pressed="false">GECID</button>
+          <button class="chip source-chip" type="button" data-source="Overclockers.ua" aria-pressed="false">Overclockers.ua</button>
         </div>
       </section>
 
