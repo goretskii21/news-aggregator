@@ -14,6 +14,27 @@ docker compose up --build
 http://localhost:5173
 ```
 
+Compose поднимает два контейнера:
+
+- `news-aggr` - локальный frontend/API сервер.
+- `news-aggr-local-d1` - SQLite-база, приближенная к Cloudflare D1 для локальной разработки.
+
+Локальная база хранится в Docker volume `news-aggr_local-d1-data` и инициализируется схемой из `db/schema.sql`.
+
+Открыть SQLite shell:
+
+```sh
+docker compose exec local-d1 sqlite3 /data/news-aggr-d1.sqlite
+```
+
+Проверить таблицы:
+
+```sh
+docker compose exec local-d1 sqlite3 /data/news-aggr-d1.sqlite ".tables"
+```
+
+Важно: сейчас приложение продолжает читать новости из memory/KV-like кэша. Контейнер `local-d1` подготовлен как локальный аналог D1 для следующего шага - переноса хранения нормализованных новостей в SQLite/D1.
+
 ## Локальный запуск без Docker
 
 ```sh
@@ -92,6 +113,25 @@ id = "86aef1c1040a4043b8d733ee21c593b7"
 
 Cron обновляет новости каждые 10 минут. На каждом успешном обновлении Worker пишет один KV-ключ `news:all`.
 
+### D1 / локальный SQLite
+
+Для локальной разработки добавлен контейнер `local-d1`. Это обычный SQLite, как и Cloudflare D1 под капотом, с таблицами:
+
+- `news_items` - нормализованные новости, уникальные по `url`.
+- `news_item_categories` - категории новости для быстрых фильтров.
+- `source_runs` - диагностические записи по загрузке источников.
+
+Когда будем переносить прод на D1, в `wrangler.toml` нужно будет добавить D1 binding, например:
+
+```toml
+[[d1_databases]]
+binding = "NEWS_DB"
+database_name = "news-aggregator"
+database_id = "..."
+```
+
+Реальный `database_id` создаётся в Cloudflare и не должен выдумываться заранее.
+
 ## Безопасность
 
 Что реализовано в Worker:
@@ -104,7 +144,7 @@ Cron обновляет новости каждые 10 минут. На кажд
 - HTML/API/static-ответы получают базовые заголовки безопасности.
 - `/api/news` поддерживает `ETag` и `304 Not Modified`.
 - `/api/news` отдаёт `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`.
-- Статические ресурсы кэшируются надолго.
+- Статические ресурсы кэшируются коротко, потому что файлы пока не fingerprinted.
 
 Что настроено в Cloudflare для `news-aggr.goretskiy.pro`:
 
