@@ -101,6 +101,12 @@ globalThis.fetch = async (url) => {
           <link>/news/smoke-${rssFetches}</link>
           <pubDate>Tue, 30 Jun 2026 12:00:00 GMT</pubDate>
         </item>
+        <item>
+          <title>Escaped html news</title>
+          <description>&lt;img src=&quot;https://example.com/image.webp&quot; /&gt;&lt;p&gt;Clean text after media tag&lt;/p&gt;</description>
+          <link>/news/escaped-${rssFetches}</link>
+          <pubDate>Tue, 30 Jun 2026 12:01:00 GMT</pubDate>
+        </item>
       </channel>
     </rss>`, {
     headers: { "content-type": "application/rss+xml; charset=utf-8" }
@@ -154,6 +160,10 @@ assert.match(first.headers.get("cache-control"), /stale-while-revalidate=600/);
 assert.ok(first.headers.get("etag"));
 const firstPayload = await first.json();
 assert.ok(firstPayload.items.length > 0);
+const escapedHtmlItem = firstPayload.items.find((item) => item.title === "Escaped html news");
+assert.ok(escapedHtmlItem);
+assert.equal(escapedHtmlItem.excerpt, "Clean text after media tag");
+assert.doesNotMatch(escapedHtmlItem.excerpt, /<img|src=|<p>/i);
 assert.ok(rssFetches > 0);
 
 const kvGetsAfterFirst = env.NEWS_CACHE.getCount;

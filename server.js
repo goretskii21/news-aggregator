@@ -490,14 +490,13 @@ function pickLink(chunk, baseUrl) {
 }
 
 function cleanText(value = "") {
-  return decodeEntities(String(value)
-    .replace(/<!\[CDATA\[|\]\]>/g, "")
+  return decodeEntities(String(value).replace(/<!\[CDATA\[|\]\]>/g, ""))
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/Читать дальше\s*→?/gi, " ")
     .replace(/\s+/g, " ")
-    .trim());
+    .trim();
 }
 
 function decodeEntities(value) {
