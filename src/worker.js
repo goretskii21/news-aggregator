@@ -1,7 +1,6 @@
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MANUAL_REFRESH_LIMIT_SECONDS = 5 * 60;
 const CACHE_KEY = "news:all";
-const META_KEY = "news:meta";
 const REFRESH_LIMIT_PREFIX = "refresh-limit";
 const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
 const API_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
@@ -341,14 +340,7 @@ async function writeCachedNews(env, payload) {
   memoryCachedAt = Date.parse(payload.updatedAt);
 
   if (env.NEWS_CACHE) {
-    await Promise.all([
-      env.NEWS_CACHE.put(CACHE_KEY, JSON.stringify(payload)),
-      env.NEWS_CACHE.put(META_KEY, JSON.stringify({
-        updatedAt: payload.updatedAt,
-        count: payload.items.length,
-        sources: sources.length
-      }))
-    ]);
+    await env.NEWS_CACHE.put(CACHE_KEY, JSON.stringify(payload));
   }
 }
 

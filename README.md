@@ -82,13 +82,12 @@ https://news-aggr.goretskiy.pro
 
 ### KV cache
 
-Worker может работать без KV, но для production лучше создать KV namespace и прописать его ID в `wrangler.toml`:
+Production использует KV namespace `news-aggregator-cache` для durable-кэша новостей и rate-limit ключей ручного refresh. В `wrangler.toml` namespace привязан как `NEWS_CACHE`:
 
 ```toml
 [[kv_namespaces]]
 binding = "NEWS_CACHE"
-id = "production-kv-namespace-id"
-preview_id = "preview-kv-namespace-id"
+id = "86aef1c1040a4043b8d733ee21c593b7"
 ```
 
 Cron настроен на обновление новостей каждые 10 минут.

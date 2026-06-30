@@ -14,9 +14,6 @@ binding = "ASSETS"
 [triggers]
 crons = ["*/10 * * * *"]
 
-# After creating a KV namespace, uncomment this block and replace the IDs.
-# The Worker also runs without KV, but KV is recommended for production cache.
-# [[kv_namespaces]]
-# binding = "NEWS_CACHE"
-# id = "replace-with-production-kv-namespace-id"
-# preview_id = "replace-with-preview-kv-namespace-id"
+[[kv_namespaces]]
+binding = "NEWS_CACHE"
+id = "86aef1c1040a4043b8d733ee21c593b7"
