@@ -1,6 +1,8 @@
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const MANUAL_REFRESH_LIMIT_SECONDS = 5 * 60;
 const CACHE_KEY = "news:all";
 const META_KEY = "news:meta";
+const REFRESH_LIMIT_PREFIX = "refresh-limit";
 
 const sources = [
   {
@@ -172,6 +174,7 @@ const sources = [
 
 let memoryCache = null;
 let memoryCachedAt = 0;
+const memoryRefreshLimits = new Map();
 
 export default {
   async fetch(request, env, ctx) {
@@ -179,7 +182,7 @@ export default {
 
     if (url.pathname === "/api/news") {
       const forceFresh = url.searchParams.get("fresh") === "1";
-      return handleNews(env, ctx, forceFresh);
+      return handleNews(request, env, ctx, forceFresh);
     }
 
     return env.ASSETS.fetch(request);
@@ -190,11 +193,29 @@ export default {
   }
 };
 
-async function handleNews(env, ctx, forceFresh) {
+async function handleNews(request, env, ctx, forceFresh) {
   try {
     if (!forceFresh) {
       const cached = await readCachedNews(env);
       if (cached) return json(cached, 200, { "cache-control": "public, max-age=60" });
+    }
+
+    if (forceFresh) {
+      const limit = await checkManualRefreshLimit(request, env);
+      if (!limit.allowed) {
+        return json(
+          {
+            error: "Слишком частое обновление",
+            detail: "Ручное обновление доступно не чаще одного раза в пять минут.",
+            retryAfter: limit.retryAfter
+          },
+          429,
+          {
+            "cache-control": "no-store",
+            "retry-after": String(limit.retryAfter)
+          }
+        );
+      }
     }
 
     const payload = await refreshNews(env);
@@ -205,6 +226,35 @@ async function handleNews(env, ctx, forceFresh) {
     if (cached) return json({ ...cached, stale: true }, 200, { "cache-control": "public, max-age=30" });
     return json({ error: "Не удалось загрузить новости", detail: error.message }, 502);
   }
+}
+
+async function checkManualRefreshLimit(request, env) {
+  const key = `${REFRESH_LIMIT_PREFIX}:${getClientKey(request)}`;
+
+  if (env.NEWS_CACHE) {
+    const previous = await env.NEWS_CACHE.get(key);
+    if (previous) {
+      const retryAfter = Math.max(1, MANUAL_REFRESH_LIMIT_SECONDS - Math.floor((Date.now() - Number(previous)) / 1000));
+      return { allowed: false, retryAfter };
+    }
+
+    await env.NEWS_CACHE.put(key, String(Date.now()), { expirationTtl: MANUAL_REFRESH_LIMIT_SECONDS });
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  const expiresAt = memoryRefreshLimits.get(key) || 0;
+  if (expiresAt > Date.now()) {
+    return { allowed: false, retryAfter: Math.ceil((expiresAt - Date.now()) / 1000) };
+  }
+
+  memoryRefreshLimits.set(key, Date.now() + MANUAL_REFRESH_LIMIT_SECONDS * 1000);
+  return { allowed: true, retryAfter: 0 };
+}
+
+function getClientKey(request) {
+  return request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "anonymous";
 }
 
 async function readCachedNews(env, allowStale = false) {

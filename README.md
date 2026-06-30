@@ -60,3 +60,16 @@ preview_id = "preview-kv-namespace-id"
 ```
 
 Cron настроен на обновление новостей каждые 10 минут.
+
+## Security
+
+Manual feed refresh is limited in the Worker: `/api/news?fresh=1` can be called once per client every five minutes. With `NEWS_CACHE` bound, the limit is stored in KV; without KV, the Worker uses an in-memory fallback.
+
+Recommended free Cloudflare settings for `news-aggr.goretskiy.pro`:
+
+1. Enable **Security > Settings > Browser Integrity Check**.
+2. Add **Security > WAF > Custom rules**:
+   - Expression: `(http.host eq "news-aggr.goretskiy.pro")`
+   - Action: `Managed Challenge`
+
+If the challenge becomes too aggressive, narrow the expression to suspicious traffic, for example requests without a common browser user agent.

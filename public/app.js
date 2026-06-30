@@ -53,6 +53,13 @@ async function loadNews(forceFresh = false) {
 
   try {
     const response = await fetch(`/api/news${forceFresh ? "?fresh=1" : ""}`);
+    if (response.status === 429) {
+      const payload = await response.json();
+      render();
+      status.textContent = `Ручное обновление доступно через ${formatDuration(payload.retryAfter || 300)}.`;
+      return;
+    }
+
     if (!response.ok) throw new Error("Bad response");
 
     const payload = await response.json();
@@ -126,4 +133,17 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function formatDuration(seconds) {
+  const minutes = Math.ceil(Number(seconds) / 60);
+  return `${minutes} ${pluralize(minutes, "минуту", "минуты", "минут")}`;
+}
+
+function pluralize(value, one, few, many) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
 }
