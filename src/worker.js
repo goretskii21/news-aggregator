@@ -335,6 +335,10 @@ async function readResponseBody(response) {
     return decodeWindows1251(bytes);
   }
 
+  if (/^koi8-?r$/i.test(charset.trim())) {
+    return decodeKoi8R(bytes);
+  }
+
   try {
     return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
   } catch {
@@ -359,6 +363,15 @@ function decodeWindows1251(bytes) {
     if (byte < 0x80) output += String.fromCharCode(byte);
     else if (byte >= 0xc0) output += String.fromCharCode(0x0410 + byte - 0xc0);
     else output += map[byte] || String.fromCharCode(byte);
+  }
+  return output;
+}
+
+function decodeKoi8R(bytes) {
+  const table = "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥ ⌡°²·÷═║╒ё╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡Ё╢╣╤╥╦╧╨╩╪╫╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ";
+  let output = "";
+  for (const byte of bytes) {
+    output += byte < 0x80 ? String.fromCharCode(byte) : table[byte - 0x80];
   }
   return output;
 }
