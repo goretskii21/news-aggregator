@@ -42,6 +42,12 @@ CLOUDFLARE_ACCOUNT_ID
 
 API token должен иметь права на деплой Workers. После push в `main` workflow выполнит `wrangler deploy`.
 
+Production domain:
+
+```text
+https://news-aggr.goretskiy.pro
+```
+
 ### KV cache
 
 Worker может работать без KV, но для production лучше создать KV namespace и прописать его ID в `wrangler.toml`:
