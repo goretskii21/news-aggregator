@@ -33,7 +33,7 @@ docker compose exec local-d1 sqlite3 /data/news-aggr-d1.sqlite
 docker compose exec local-d1 sqlite3 /data/news-aggr-d1.sqlite ".tables"
 ```
 
-Важно: сейчас приложение продолжает читать новости из memory/KV-like кэша. Контейнер `local-d1` подготовлен как локальный аналог D1 для следующего шага - переноса хранения нормализованных новостей в SQLite/D1.
+Локальный сервер использует эту базу, если задан `LOCAL_D1_DB_PATH`. В Docker Compose переменная уже настроена.
 
 ## Локальный запуск без Docker
 
@@ -67,16 +67,18 @@ Production branch: main
 Cron-триггер
   -> загрузка RSS/news-источников
   -> нормализация новостей
-  -> запись JSON в KV/memory-кэш
+  -> upsert уникальных новостей в D1/SQLite
+  -> чистка новостей старше 7 дней
   -> сброс записи в Worker Cache API
 
 Запрос пользователя /api/news
   -> Worker Cache API
-  -> memory/KV-кэш
+  -> D1/SQLite
+  -> memory/KV fallback
   -> загрузка RSS только при полном промахе кэша
 ```
 
-Обычные пользовательские запросы не должны ходить во внешние RSS-источники каждый раз. Самый быстрый путь - `caches.default`, затем memory/KV-кэш. Ручное принудительное обновление доступно только с админским токеном.
+Обычные пользовательские запросы не должны ходить во внешние RSS-источники каждый раз. Самый быстрый путь - `caches.default`, затем D1/SQLite. Ручное принудительное обновление доступно только с админским токеном.
 
 ### Секреты Worker
 
@@ -103,7 +105,7 @@ https://news-aggr.goretskiy.pro
 
 ### KV-кэш
 
-Прод использует KV namespace `news-aggregator-cache` для постоянного кэша новостей и ключей ограничения частоты для ручного обновления. В `wrangler.toml` namespace привязан как `NEWS_CACHE`:
+KV namespace `news-aggregator-cache` остаётся для ключей ограничения частоты ручного обновления. Если D1 binding `NEWS_DB` недоступен, Worker использует KV как fallback-кэш новостей. В `wrangler.toml` namespace привязан как `NEWS_CACHE`:
 
 ```toml
 [[kv_namespaces]]
@@ -111,26 +113,34 @@ binding = "NEWS_CACHE"
 id = "86aef1c1040a4043b8d733ee21c593b7"
 ```
 
-Cron обновляет новости каждые 10 минут. На каждом успешном обновлении Worker пишет один KV-ключ `news:all`.
+Cron обновляет новости каждые 10 минут.
 
 ### D1 / локальный SQLite
 
-Для локальной разработки добавлен контейнер `local-d1`. Это обычный SQLite, как и Cloudflare D1 под капотом, с таблицами:
+Для локальной разработки добавлен контейнер `local-d1`. Это обычный SQLite, как и Cloudflare D1 под капотом. Период хранения новостей - 7 дней.
 
 - `news_items` - нормализованные новости, уникальные по `url`.
 - `news_item_categories` - категории новости для быстрых фильтров.
 - `source_runs` - диагностические записи по загрузке источников.
 
-Когда будем переносить прод на D1, в `wrangler.toml` нужно будет добавить D1 binding, например:
+Чистка новостей старше 7 дней выполняется только scheduled cron-обновлением раз в 10 минут. Обычные пользовательские запросы и manual refresh не запускают prune.
+
+D1 база `news-aggregator` создана в Cloudflare. Binding в `wrangler.toml`:
 
 ```toml
 [[d1_databases]]
 binding = "NEWS_DB"
 database_name = "news-aggregator"
-database_id = "..."
+database_id = "4f1aeb4b-19a4-4aba-b034-f156c94770ca"
 ```
 
-Реальный `database_id` создаётся в Cloudflare и не должен выдумываться заранее.
+Схема применяется командой:
+
+```sh
+wrangler d1 execute news-aggregator --remote --file db/schema.sql
+```
+
+Если база пересоздаётся, сначала выполните `wrangler d1 create news-aggregator`, затем замените `database_id` в `wrangler.toml` на новый id из Cloudflare Dashboard.
 
 ## Безопасность
 
@@ -151,6 +161,7 @@ database_id = "..."
 1. **AI Crawl Control**: все 32 краулера из списка Cloudflare переведены в режим `Block`.
 2. `/robots.txt` закрывает сайт от индексации.
 3. KV-кэш включён через привязку `NEWS_CACHE`.
+4. D1 подключён через binding `NEWS_DB`; при пересоздании базы нужно обновить `database_id` и заново применить `db/schema.sql`.
 
 Рекомендованные дополнительные бесплатные настройки Cloudflare:
 

@@ -1,6 +1,3 @@
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS news_items (
   id TEXT PRIMARY KEY,
   url TEXT NOT NULL UNIQUE,

@@ -1,6 +1,7 @@
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -8,6 +9,9 @@ const publicDir = join(__dirname, "public");
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "127.0.0.1";
 const CACHE_TTL = 10 * 60 * 1000;
+const NEWS_RETENTION_DAYS = 7;
+const MAX_NEWS_ITEMS = 320;
+const LOCAL_D1_DB_PATH = process.env.LOCAL_D1_DB_PATH || "";
 const APPLE_CATEGORIES = ["apple", "software", "hardware", "tech"];
 
 const sources = [
@@ -323,6 +327,7 @@ const sources = [
 
 let cachedNews = null;
 let cachedAt = 0;
+let localDb = null;
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
@@ -339,6 +344,10 @@ server.listen(PORT, HOST, () => {
   console.log(`News aggregator is running at http://${HOST}:${PORT}`);
 });
 
+if (LOCAL_D1_DB_PATH) {
+  setInterval(pruneStoredNews, 10 * 60 * 1000).unref();
+}
+
 async function handleNews(res, forceFresh) {
   try {
     const now = Date.now();
@@ -347,18 +356,146 @@ async function handleNews(res, forceFresh) {
       return;
     }
 
+    if (!forceFresh) {
+      const stored = readStoredNews();
+      if (stored?.items.length) {
+        cachedNews = stored.items;
+        cachedAt = Date.parse(stored.updatedAt);
+        sendJson(res, stored);
+        return;
+      }
+    }
+
     const settled = await Promise.allSettled(sources.map(loadSource));
     const items = settled
       .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
       .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-      .slice(0, 320);
+      .slice(0, MAX_NEWS_ITEMS);
 
-    cachedNews = items;
-    cachedAt = now;
-    sendJson(res, { updatedAt: new Date(cachedAt).toISOString(), items });
+    const updatedAt = new Date(now).toISOString();
+    writeStoredNews(items, updatedAt);
+    const stored = readStoredNews();
+    const payload = stored || { updatedAt, items };
+    cachedNews = payload.items;
+    cachedAt = Date.parse(payload.updatedAt);
+    sendJson(res, payload);
   } catch (error) {
     sendJson(res, { error: "Не удалось загрузить новости", detail: error.message }, 502);
   }
+}
+
+function openLocalDb() {
+  if (!LOCAL_D1_DB_PATH) return null;
+  if (!localDb) {
+    localDb = new DatabaseSync(LOCAL_D1_DB_PATH);
+    localDb.exec("PRAGMA foreign_keys = ON;");
+  }
+  return localDb;
+}
+
+function readStoredNews() {
+  const db = openLocalDb();
+  if (!db) return null;
+
+  const rows = db.prepare(`
+    SELECT id, source, title, excerpt, url, categories, published_at, updated_at
+    FROM news_items
+    WHERE COALESCE(published_at, fetched_at) >= ?
+    ORDER BY COALESCE(published_at, fetched_at) DESC, updated_at DESC
+    LIMIT ?
+  `).all(retentionCutoff(), MAX_NEWS_ITEMS);
+
+  if (!rows.length) return null;
+
+  return {
+    updatedAt: rows.reduce((latest, row) => row.updated_at > latest ? row.updated_at : latest, rows[0].updated_at),
+    items: rows.map(rowToNewsItem)
+  };
+}
+
+function writeStoredNews(items, updatedAt) {
+  const db = openLocalDb();
+  if (!db) return;
+
+  const upsert = db.prepare(`
+    INSERT INTO news_items (id, url, source, title, excerpt, categories, published_at, fetched_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(url) DO UPDATE SET
+      id = excluded.id,
+      source = excluded.source,
+      title = excluded.title,
+      excerpt = excluded.excerpt,
+      categories = excluded.categories,
+      published_at = excluded.published_at,
+      updated_at = excluded.updated_at
+  `);
+  const deleteCategories = db.prepare("DELETE FROM news_item_categories WHERE news_id = ?");
+  const insertCategory = db.prepare("INSERT OR IGNORE INTO news_item_categories (news_id, category) VALUES (?, ?)");
+
+  db.exec("BEGIN");
+  try {
+    for (const item of items) {
+      const publishedAt = item.publishedAt || updatedAt;
+      upsert.run(
+        item.id,
+        item.url,
+        item.source,
+        item.title,
+        item.excerpt,
+        JSON.stringify(item.categories || []),
+        publishedAt,
+        updatedAt,
+        updatedAt
+      );
+      deleteCategories.run(item.id);
+      for (const category of item.categories || []) {
+        insertCategory.run(item.id, category);
+      }
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function pruneStoredNews() {
+  const db = openLocalDb();
+  if (!db) return;
+
+  const cutoff = retentionCutoff();
+  db.prepare(`
+    DELETE FROM news_item_categories
+    WHERE news_id IN (
+      SELECT id FROM news_items WHERE COALESCE(published_at, fetched_at) < ?
+    )
+  `).run(cutoff);
+  db.prepare("DELETE FROM news_items WHERE COALESCE(published_at, fetched_at) < ?").run(cutoff);
+}
+
+function rowToNewsItem(row) {
+  return {
+    id: row.id,
+    source: row.source,
+    categories: parseCategories(row.categories),
+    title: row.title,
+    excerpt: row.excerpt,
+    url: row.url,
+    publishedAt: row.published_at || ""
+  };
+}
+
+function parseCategories(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function retentionCutoff() {
+  return new Date(Date.now() - NEWS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
 async function loadSource(source) {

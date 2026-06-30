@@ -1,5 +1,7 @@
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MANUAL_REFRESH_LIMIT_SECONDS = 5 * 60;
+const NEWS_RETENTION_DAYS = 7;
+const MAX_NEWS_ITEMS = 320;
 const CACHE_KEY = "news:all";
 const REFRESH_LIMIT_PREFIX = "refresh-limit";
 const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
@@ -321,7 +323,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(refreshNews(env, { purgeEdgeCache: true }));
+    ctx.waitUntil(refreshNews(env, { purgeEdgeCache: true, pruneStoredNews: true }));
   }
 };
 
@@ -419,6 +421,11 @@ function getClientKey(request) {
 }
 
 async function readCachedNews(env, allowStale = false) {
+  if (env.NEWS_DB) {
+    const storedPayload = await readStoredNews(env.NEWS_DB);
+    if (storedPayload?.items.length) return storedPayload;
+  }
+
   const kvPayload = await env.NEWS_CACHE?.get(CACHE_KEY, { type: "json" });
   if (kvPayload && (allowStale || Date.now() - Date.parse(kvPayload.updatedAt) < CACHE_TTL_MS)) return kvPayload;
 
@@ -433,6 +440,11 @@ async function writeCachedNews(env, payload) {
   memoryCache = payload.items;
   memoryCachedAt = Date.parse(payload.updatedAt);
 
+  if (env.NEWS_DB) {
+    await writeStoredNews(env.NEWS_DB, payload.items, payload.updatedAt);
+    return;
+  }
+
   if (env.NEWS_CACHE) {
     await env.NEWS_CACHE.put(CACHE_KEY, JSON.stringify(payload));
   }
@@ -443,12 +455,114 @@ async function refreshNews(env, options = {}) {
   const items = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-    .slice(0, 320);
+    .slice(0, MAX_NEWS_ITEMS);
 
   const payload = { updatedAt: new Date().toISOString(), items };
   await writeCachedNews(env, payload);
+  if (options.pruneStoredNews && env.NEWS_DB) await pruneStoredNews(env.NEWS_DB);
   if (options.purgeEdgeCache) await caches.default.delete(newsCacheRequest());
-  return payload;
+  return env.NEWS_DB ? await readStoredNews(env.NEWS_DB) : payload;
+}
+
+async function readStoredNews(db) {
+  const cutoff = retentionCutoff();
+  const result = await db.prepare(`
+    SELECT id, source, title, excerpt, url, categories, published_at, updated_at
+    FROM news_items
+    WHERE COALESCE(published_at, fetched_at) >= ?
+    ORDER BY COALESCE(published_at, fetched_at) DESC, updated_at DESC
+    LIMIT ?
+  `).bind(cutoff, MAX_NEWS_ITEMS).all();
+
+  const rows = result.results || [];
+  if (!rows.length) return null;
+
+  return {
+    updatedAt: rows.reduce((latest, row) => row.updated_at > latest ? row.updated_at : latest, rows[0].updated_at),
+    items: rows.map(rowToNewsItem)
+  };
+}
+
+async function writeStoredNews(db, items, updatedAt) {
+  const statements = [];
+
+  for (const item of items) {
+    const publishedAt = item.publishedAt || updatedAt;
+    statements.push(db.prepare(`
+      INSERT INTO news_items (id, url, source, title, excerpt, categories, published_at, fetched_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(url) DO UPDATE SET
+        id = excluded.id,
+        source = excluded.source,
+        title = excluded.title,
+        excerpt = excluded.excerpt,
+        categories = excluded.categories,
+        published_at = excluded.published_at,
+        updated_at = excluded.updated_at
+    `).bind(
+      item.id,
+      item.url,
+      item.source,
+      item.title,
+      item.excerpt,
+      JSON.stringify(item.categories || []),
+      publishedAt,
+      updatedAt,
+      updatedAt
+    ));
+
+    statements.push(db.prepare("DELETE FROM news_item_categories WHERE news_id = ?").bind(item.id));
+    for (const category of item.categories || []) {
+      statements.push(db.prepare(`
+        INSERT OR IGNORE INTO news_item_categories (news_id, category)
+        VALUES (?, ?)
+      `).bind(item.id, category));
+    }
+  }
+
+  await executeD1Batch(db, statements);
+}
+
+async function pruneStoredNews(db) {
+  const cutoff = retentionCutoff();
+  await db.prepare(`
+    DELETE FROM news_item_categories
+    WHERE news_id IN (
+      SELECT id FROM news_items WHERE COALESCE(published_at, fetched_at) < ?
+    )
+  `).bind(cutoff).run();
+  await db.prepare("DELETE FROM news_items WHERE COALESCE(published_at, fetched_at) < ?").bind(cutoff).run();
+}
+
+async function executeD1Batch(db, statements, chunkSize = 50) {
+  for (let index = 0; index < statements.length; index += chunkSize) {
+    await db.batch(statements.slice(index, index + chunkSize));
+  }
+}
+
+function rowToNewsItem(row) {
+  return {
+    id: row.id,
+    source: row.source,
+    categories: parseCategories(row.categories),
+    title: row.title,
+    excerpt: row.excerpt,
+    url: row.url,
+    publishedAt: row.published_at || ""
+  };
+}
+
+function parseCategories(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function retentionCutoff() {
+  return new Date(Date.now() - NEWS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
 async function loadSource(source) {

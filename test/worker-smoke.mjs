@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import worker from "../src/worker.js";
 
 class MemoryKV {
@@ -47,7 +49,7 @@ class MemoryCache {
   }
 }
 
-function createEnv() {
+function createEnv(overrides = {}) {
   return {
     REFRESH_TOKEN: "local-refresh-token",
     NEWS_CACHE: new MemoryKV(),
@@ -63,6 +65,43 @@ function createEnv() {
         return new Response("<!doctype html><html><body>ok</body></html>", {
           headers: { "content-type": "text/html; charset=utf-8" }
         });
+      }
+    },
+    ...overrides
+  };
+}
+
+function createD1() {
+  const db = new DatabaseSync(":memory:");
+  const schema = readFileSync(new URL("../db/schema.sql", import.meta.url), "utf8");
+  db.exec(schema);
+
+  return {
+    db,
+    prepare(sql) {
+      return {
+        bind(...params) {
+          const statement = db.prepare(sql);
+          return {
+            async all() {
+              return { results: statement.all(...params) };
+            },
+            async run() {
+              statement.run(...params);
+              return { success: true };
+            }
+          };
+        }
+      };
+    },
+    async batch(statements) {
+      db.exec("BEGIN");
+      try {
+        for (const statement of statements) await statement.run();
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
       }
     }
   };
@@ -244,6 +283,47 @@ assert.equal(await weakNotModified.text(), "");
   await worker.scheduled({}, env, ctx);
   await ctx.flush();
   assert.ok(rssFetches > beforeScheduledFetches);
+}
+
+{
+  const d1 = createD1();
+  const d1Env = createEnv({ NEWS_DB: d1 });
+  globalThis.caches = { default: new MemoryCache() };
+
+  d1.db.prepare(`
+    INSERT INTO news_items (id, url, source, title, excerpt, categories, published_at, fetched_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    "old:item",
+    "https://example.com/old",
+    "Old source",
+    "Old title",
+    "Old excerpt",
+    JSON.stringify(["tech"]),
+    "2026-06-01T00:00:00.000Z",
+    "2026-06-01T00:00:00.000Z",
+    "2026-06-01T00:00:00.000Z"
+  );
+
+  const refreshCtx = createCtx();
+  const refreshed = await worker.fetch(request("/api/news?fresh=1&token=local-refresh-token"), d1Env, refreshCtx);
+  await refreshCtx.flush();
+  assert.equal(refreshed.status, 200);
+  assert.equal(d1.db.prepare("SELECT COUNT(*) AS count FROM news_items WHERE id = ?").get("old:item").count, 1);
+  assert.ok(d1.db.prepare("SELECT COUNT(*) AS count FROM news_items").get().count > 0);
+
+  const fetchesAfterRefresh = rssFetches;
+  const fromD1 = await worker.fetch(request("/api/news"), d1Env, createCtx());
+  assert.equal(fromD1.status, 200);
+  assert.equal(rssFetches, fetchesAfterRefresh);
+  const payload = await fromD1.json();
+  assert.ok(payload.items.length > 0);
+  assert.ok(d1.db.prepare("SELECT COUNT(*) AS count FROM news_item_categories").get().count > 0);
+
+  const scheduledCtx = createCtx();
+  await worker.scheduled({}, d1Env, scheduledCtx);
+  await scheduledCtx.flush();
+  assert.equal(d1.db.prepare("SELECT COUNT(*) AS count FROM news_items WHERE id = ?").get("old:item").count, 0);
 }
 
 console.log("worker smoke checks passed");
