@@ -4,7 +4,7 @@ const CACHE_KEY = "news:all";
 const REFRESH_LIMIT_PREFIX = "refresh-limit";
 const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
 const API_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
-const STATIC_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const STATIC_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
 const HTML_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
 const BLOCKED_USER_AGENT_PATTERNS = [
   /python-requests/i,

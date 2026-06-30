@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Новости</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260630-theme">
   </head>
   <body>
     <header class="topbar">
@@ -12,9 +12,16 @@
         <p class="eyebrow">Новости</p>
         <h1 id="pageTitle">Новости</h1>
       </div>
-      <button class="refresh" id="refreshButton" type="button" aria-label="Обновить новости">
-        <span aria-hidden="true">↻</span>
-      </button>
+      <div class="top-actions">
+        <div class="theme-switcher" role="group" aria-label="Тема оформления">
+          <button class="theme-option" type="button" data-theme-mode="system" aria-pressed="true">Система</button>
+          <button class="theme-option" type="button" data-theme-mode="light" aria-pressed="false">Светлая</button>
+          <button class="theme-option" type="button" data-theme-mode="dark" aria-pressed="false">Тёмная</button>
+        </div>
+        <button class="refresh" id="refreshButton" type="button" aria-label="Обновить новости">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
     </header>
 
     <main class="layout">
@@ -67,6 +74,6 @@
       </article>
     </template>
 
-    <script src="/app.js" type="module"></script>
+    <script src="/app.js?v=20260630-theme" type="module"></script>
   </body>
 </html>

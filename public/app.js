@@ -6,6 +6,9 @@ const pageTitle = document.querySelector("#pageTitle");
 const categoryChips = [...document.querySelectorAll(".category-chip")];
 const sourceChips = [...document.querySelectorAll(".source-chip")];
 const sourceAllChip = sourceChips.find((chip) => chip.dataset.source === "all");
+const themeOptions = [...document.querySelectorAll(".theme-option")];
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const themeStorageKey = "news-aggr-theme";
 
 const categoryTitles = {
   all: "Новости",
@@ -18,8 +21,23 @@ const categoryTitles = {
 let items = [];
 let activeCategory = "all";
 let activeSources = new Set();
+let activeThemeMode = normalizeThemeMode(readStoredThemeMode());
+
+applyThemeMode(activeThemeMode);
 
 refreshButton.addEventListener("click", () => loadNews());
+
+themeOptions.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeThemeMode = normalizeThemeMode(button.dataset.themeMode);
+    storeThemeMode(activeThemeMode);
+    applyThemeMode(activeThemeMode);
+  });
+});
+
+systemThemeQuery.addEventListener("change", () => {
+  if (activeThemeMode === "system") applyThemeMode(activeThemeMode);
+});
 
 categoryChips.forEach((chip) => {
   chip.addEventListener("click", () => {
@@ -146,4 +164,35 @@ function pluralize(value, one, few, many) {
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
   return many;
+}
+
+function applyThemeMode(mode) {
+  const resolvedTheme = mode === "system" && systemThemeQuery.matches ? "dark" : mode === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = resolvedTheme;
+  document.documentElement.dataset.themeMode = mode;
+  themeOptions.forEach((button) => {
+    const isActive = button.dataset.themeMode === mode;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function normalizeThemeMode(mode) {
+  return ["system", "light", "dark"].includes(mode) ? mode : "system";
+}
+
+function readStoredThemeMode() {
+  try {
+    return localStorage.getItem(themeStorageKey);
+  } catch {
+    return "system";
+  }
+}
+
+function storeThemeMode(mode) {
+  try {
+    localStorage.setItem(themeStorageKey, mode);
+  } catch {
+    // Тема всё равно применится в текущей вкладке.
+  }
 }

@@ -123,7 +123,7 @@ const env = createEnv();
 {
   const response = await worker.fetch(request("/app.js"), env, createCtx());
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=300, stale-while-revalidate=86400");
 }
 
 {
