@@ -212,6 +212,63 @@ h1 {
   color: var(--active-ink);
 }
 
+.source-row {
+  position: relative;
+}
+
+.source-dropdown {
+  width: 100%;
+}
+
+.source-dropdown[open] .source-trigger {
+  border-color: var(--active-bg);
+}
+
+.source-dropdown[open] .source-trigger-icon {
+  transform: rotate(225deg);
+}
+
+.source-trigger {
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+}
+
+.source-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.source-trigger-icon {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.source-menu {
+  display: flex;
+  max-height: 340px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 8px;
+  scrollbar-width: thin;
+}
+
+.source-menu .chip {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .status {
   min-height: 34px;
   color: var(--muted);
@@ -282,6 +339,7 @@ h1 {
 .more:hover,
 .refresh:hover,
 .chip:hover,
+.source-trigger:hover,
 .theme-option:hover {
   transform: translateY(-1px);
 }
@@ -289,6 +347,7 @@ h1 {
 .more:focus-visible,
 .refresh:focus-visible,
 .chip:focus-visible,
+.source-trigger:focus-visible,
 .theme-option:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 3px;

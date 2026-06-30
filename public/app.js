@@ -6,6 +6,8 @@ const pageTitle = document.querySelector("#pageTitle");
 const categoryChips = [...document.querySelectorAll(".category-chip")];
 const sourceChips = [...document.querySelectorAll(".source-chip")];
 const sourceAllChip = sourceChips.find((chip) => chip.dataset.source === "all");
+const sourceDropdown = document.querySelector("#sourceDropdown");
+const sourceSummary = document.querySelector("#sourceSummary");
 const themeOptions = [...document.querySelectorAll(".theme-option")];
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const themeStorageKey = "news-aggr-theme";
@@ -61,6 +63,12 @@ sourceChips.forEach((chip) => {
     updateSourceChips();
     render();
   });
+});
+
+document.addEventListener("click", (event) => {
+  if (!sourceDropdown.contains(event.target)) {
+    sourceDropdown.open = false;
+  }
 });
 
 await loadNews();
@@ -124,6 +132,22 @@ function updateSourceChips() {
       chip.classList.toggle("active", isActive);
       chip.setAttribute("aria-pressed", String(isActive));
     });
+
+  updateSourceSummary();
+}
+
+function updateSourceSummary() {
+  if (!activeSources.size) {
+    sourceSummary.textContent = "Все источники";
+    return;
+  }
+
+  if (activeSources.size === 1) {
+    sourceSummary.textContent = [...activeSources][0];
+    return;
+  }
+
+  sourceSummary.textContent = `${activeSources.size} ${pluralize(activeSources.size, "источник", "источника", "источников")}`;
 }
 
 function createCard(item) {
