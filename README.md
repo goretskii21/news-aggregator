@@ -31,6 +31,23 @@ npm start
 - `wrangler.toml` - конфиг Cloudflare Worker.
 - `.github/workflows/cloudflare-deploy.yml` - автодеплой из GitHub Actions.
 
+### Architecture
+
+```text
+Cron trigger
+  -> fetch RSS/news sources
+  -> normalize items
+  -> write JSON to KV/memory
+  -> purge Worker Cache API entry
+
+User request /api/news
+  -> Worker Cache API
+  -> memory/KV cache
+  -> RSS fetch only on cold miss
+```
+
+Normal user requests should not fetch external RSS sources on every hit. The fastest path is `caches.default`; the next path is memory/KV. Manual forced refresh is admin-only.
+
 ### GitHub Secrets
 
 Для автодеплоя добавьте в GitHub repository secrets:
@@ -41,6 +58,21 @@ CLOUDFLARE_ACCOUNT_ID
 ```
 
 API token должен иметь права на деплой Workers. После push в `main` workflow выполнит `wrangler deploy`.
+
+Worker secret:
+
+```sh
+wrangler secret put REFRESH_TOKEN
+```
+
+`REFRESH_TOKEN` is required for manual refresh requests:
+
+```text
+/api/news?fresh=1&token=...
+X-Refresh-Token: ...
+```
+
+Do not commit real secret values.
 
 Production domain:
 
@@ -63,13 +95,64 @@ Cron настроен на обновление новостей каждые 10
 
 ## Security
 
-Manual feed refresh is limited in the Worker: `/api/news?fresh=1` can be called once per client every five minutes. With `NEWS_CACHE` bound, the limit is stored in KV; without KV, the Worker uses an in-memory fallback.
+Implemented in Worker:
+
+- Bad User-Agent blocklist for obvious scripts: `python-requests`, `curl`, `wget`, `scrapy`, `go-http-client`.
+- Manual refresh requires `REFRESH_TOKEN`.
+- Manual refresh is rate-limited per client IP to once every five minutes.
+- API rejects cross-origin `Origin`/`Referer` values.
+- `/robots.txt` returns `Disallow: /`.
+- Security headers are added to HTML/API/static responses.
+- `/api/news` supports `ETag` and `304 Not Modified`.
+- `/api/news` uses `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`.
+- Static assets use long-lived cache headers.
 
 Recommended free Cloudflare settings for `news-aggr.goretskiy.pro`:
 
-1. Enable **Security > Settings > Browser Integrity Check**.
-2. Add **Security > WAF > Custom rules**:
+1. Enable WAF Managed Rules where available.
+2. Enable Bot Fight Mode or Super Bot Fight Mode if available on the current plan.
+3. Add **Security > WAF > Custom rules**:
    - Expression: `(http.host eq "news-aggr.goretskiy.pro")`
    - Action: `Managed Challenge`
+4. Add Rate Limiting for `/api/news` if it is available on the account plan.
+5. Enable AI bot blocking / AI Crawl Control if the site should not be indexed by AI crawlers.
+6. Keep any cache rules conservative unless they preserve `/api/news?fresh=1` as uncached.
 
 If the challenge becomes too aggressive, narrow the expression to suspicious traffic, for example requests without a common browser user agent.
+
+## Commands
+
+```sh
+npm run check
+npm run smoke
+wrangler deploy
+```
+
+Check API:
+
+```sh
+curl -i -A "Mozilla/5.0 Smoke Check" https://news-aggr.goretskiy.pro/api/news
+```
+
+Check ETag / 304:
+
+```sh
+ETAG="$(curl -sI -A 'Mozilla/5.0 Smoke Check' https://news-aggr.goretskiy.pro/api/news | awk -F': ' 'tolower($1)=="etag"{print $2}' | tr -d '\r')"
+curl -i -A 'Mozilla/5.0 Smoke Check' -H "If-None-Match: $ETAG" https://news-aggr.goretskiy.pro/api/news
+```
+
+Manual refresh:
+
+```sh
+curl -i -A "Mozilla/5.0 Smoke Check" "https://news-aggr.goretskiy.pro/api/news?fresh=1&token=$REFRESH_TOKEN"
+```
+
+Expected smoke checks:
+
+- `/` returns HTML.
+- `/api/news` returns JSON.
+- `/api/news?fresh=1` without token returns `403`.
+- `/api/news?fresh=1` with token works.
+- `If-None-Match` returns `304`.
+- Bad User-Agent is blocked.
+- Scheduled refresh does not require token.

@@ -19,7 +19,7 @@ let items = [];
 let activeCategory = "all";
 let activeSources = new Set();
 
-refreshButton.addEventListener("click", () => loadNews(true));
+refreshButton.addEventListener("click", () => loadNews());
 
 categoryChips.forEach((chip) => {
   chip.addEventListener("click", () => {
@@ -49,7 +49,7 @@ await loadNews();
 
 async function loadNews(forceFresh = false) {
   refreshButton.disabled = true;
-  status.textContent = forceFresh ? "Обновляю новости..." : "Загружаю новости...";
+  status.textContent = items.length ? "Обновляю список..." : "Загружаю новости...";
 
   try {
     const response = await fetch(`/api/news${forceFresh ? "?fresh=1" : ""}`);

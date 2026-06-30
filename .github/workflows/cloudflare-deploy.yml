@@ -27,6 +27,9 @@ jobs:
       - name: Check syntax
         run: npm run check
 
+      - name: Run smoke checks
+        run: npm run smoke
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
