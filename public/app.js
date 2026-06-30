@@ -52,7 +52,7 @@ async function loadNews(forceFresh = false) {
   status.textContent = items.length ? "Обновляю список..." : "Загружаю новости...";
 
   try {
-    const response = await fetch(`/api/news${forceFresh ? "?fresh=1" : ""}`);
+    const response = await fetch(`/api/news${forceFresh ? "?fresh=1" : ""}`, { cache: "no-cache" });
     if (response.status === 429) {
       const payload = await response.json();
       render();
