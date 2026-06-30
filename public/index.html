@@ -17,7 +17,7 @@
       </button>
     </header>
 
-    <main>
+    <main class="layout">
       <section class="controls" aria-label="Фильтры">
         <div class="filter-row" aria-label="Категории">
           <button class="chip category-chip active" type="button" data-category="all">Все</button>
@@ -49,8 +49,10 @@
         </div>
       </section>
 
-      <section class="status" id="status" aria-live="polite">Загружаю новости...</section>
-      <section class="grid" id="newsGrid" aria-label="Список новостей"></section>
+      <div class="content">
+        <section class="status" id="status" aria-live="polite">Загружаю новости...</section>
+        <section class="grid" id="newsGrid" aria-label="Список новостей"></section>
+      </div>
     </main>
 
     <template id="newsCardTemplate">
