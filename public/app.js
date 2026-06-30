@@ -17,7 +17,8 @@ const categoryTitles = {
   games: "Игровые новости",
   software: "Новости софта",
   hardware: "Новости железа",
-  tech: "Новости технологий"
+  tech: "Новости технологий",
+  apple: "Новости Apple"
 };
 
 let items = [];

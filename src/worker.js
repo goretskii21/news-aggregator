@@ -23,6 +23,7 @@ const SECURITY_HEADERS = {
   "x-frame-options": "DENY",
   "permissions-policy": "camera=(), microphone=(), geolocation=()"
 };
+const APPLE_CATEGORIES = ["apple", "software", "hardware", "tech"];
 
 const sources = [
   {
@@ -187,6 +188,96 @@ const sources = [
     homepage: "https://www.overclockers.ua",
     categories: ["games", "software", "hardware", "tech"],
     candidates: ["https://www.overclockers.ua/rss.xml"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "appleinsider-ru",
+    name: "AppleInsider.ru",
+    homepage: "https://appleinsider.ru",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://appleinsider.ru/feed"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "iphones-ru",
+    name: "iPhones.ru",
+    homepage: "https://www.iphones.ru",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.iphones.ru/feed"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "the-verge-apple",
+    name: "The Verge Apple",
+    homepage: "https://www.theverge.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.theverge.com/rss/apple/index.xml"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "macstories",
+    name: "MacStories",
+    homepage: "https://www.macstories.net",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.macstories.net/feed/"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "gagadget",
+    name: "gagadget",
+    homepage: "https://gagadget.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://gagadget.com/rss/"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "macworld",
+    name: "Macworld",
+    homepage: "https://www.macworld.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.macworld.com/feed"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "9to5mac",
+    name: "9to5Mac",
+    homepage: "https://9to5mac.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://9to5mac.com/feed/"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "macrumors",
+    name: "MacRumors",
+    homepage: "https://www.macrumors.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.macrumors.com/macrumors.xml"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "appleinsider-com",
+    name: "AppleInsider.com",
+    homepage: "https://appleinsider.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://appleinsider.com/rss/news/"],
+    articlePattern: /<article[\s\S]*?<\/article>/gi,
+    linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
+  },
+  {
+    id: "cult-of-mac",
+    name: "Cult of Mac",
+    homepage: "https://www.cultofmac.com",
+    categories: APPLE_CATEGORIES,
+    candidates: ["https://www.cultofmac.com/feed/"],
     articlePattern: /<article[\s\S]*?<\/article>/gi,
     linkPattern: /href=["']([^"']+)["'][\s\S]*?(?:<h[23][^>]*>|class=["'][^"']*(?:title|name)[^"']*["'][^>]*>)([\s\S]*?)(?:<\/h[23]>|<\/a>|<\/div>)/i
   }
