@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "check": "node --check server.js && node --check src/worker.js && node --check public/app.js",
+    "check": "node --check src/worker.js",
     "smoke": "node test/worker-smoke.mjs",
     "deploy": "wrangler deploy",
     "dev:worker": "wrangler dev"

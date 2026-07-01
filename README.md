@@ -1,40 +1,32 @@
 # News Aggregator
 
-Агрегатор русскоязычных новостей про игры, софт, железо и технологии.
+Персональный Telegram-бот для публикации новостей из RSS/news-источников.
 
-## Запуск через Docker Compose
+Веб-версия удалена: проект больше не отдаёт HTML, публичный API или статические файлы. Worker работает как cron-задача в Cloudflare Workers.
 
-```sh
-docker compose up --build
-```
-
-После запуска откройте:
+## Архитектура
 
 ```text
-http://localhost:5173
+Cloudflare scheduled cron
+  -> загрузка RSS/news-источников
+  -> нормализация новостей
+  -> сравнение с предыдущим KV payload
+  -> отправка новых новостей в Telegram-канал
+  -> запись текущего payload в KV
+  -> запись telegram:sent:* ключей против дублей
 ```
 
-Compose поднимает один контейнер:
-
-- `news-aggr` - локальный frontend/API сервер.
-
-## Локальный запуск без Docker
-
-```sh
-npm start
-```
-
-Сервер по умолчанию слушает `127.0.0.1:5173`. В контейнере Compose передает `HOST=0.0.0.0`, чтобы порт был доступен с хоста.
+HTTP-запросы к Worker возвращают `404 Not Found`. Основной рабочий путь - только `scheduled()`.
 
 ## Cloudflare Workers
 
-Проект подготовлен для деплоя в Cloudflare Workers:
+Основные файлы:
 
-- `src/worker.js` - API `/api/news`, cron-обновление и отдача статических ресурсов.
-- `public/` - фронт приложения.
-- `wrangler.toml` - конфиг Cloudflare Worker.
+- `src/worker.js` - источники, парсинг, cron и Telegram-публикация.
+- `wrangler.toml` - конфиг Worker, cron и KV binding.
+- `test/worker-smoke.mjs` - smoke-проверки cron/KV/Telegram.
 
-Деплой настроен через встроенную интеграцию **Cloudflare Workers + GitHub**. После push в `main` Cloudflare сам запускает проверки и `wrangler deploy`.
+Деплой настроен через встроенную интеграцию **Cloudflare Workers + GitHub**. После push в `main` Cloudflare запускает проверки и деплой.
 
 Текущая конфигурация сборки в Cloudflare:
 
@@ -44,52 +36,14 @@ npm start
 Production branch: main
 ```
 
-### Архитектура
+## KV
 
-```text
-Cron-триггер
-  -> загрузка RSS/news-источников
-  -> нормализация новостей
-  -> запись одного JSON payload в KV
-  -> отправка новых новостей в Telegram-канал
-  -> сброс записи в Worker Cache API
+KV namespace `news-aggregator-cache` хранит:
 
-Запрос пользователя /api/news
-  -> Worker Cache API
-  -> KV
-  -> memory fallback
-  -> ответ без обращений к внешним RSS-источникам
-```
+- `news:all` - последний нормализованный payload новостей;
+- `telegram:sent:*` - отметки отправленных новостей.
 
-Обычные пользовательские запросы не ходят во внешние RSS-источники. Новости собирает только scheduled cron каждые 10 минут, затем пользователи читают готовый payload из Worker Cache API или KV. Ручное принудительное обновление отключено.
-
-### Telegram-канал
-
-Cron может публиковать новые новости в Telegram-канал через Bot API. Для этого в Worker должны быть добавлены секреты:
-
-```text
-TELEGRAM_BOT_TOKEN
-TELEGRAM_CHANNEL_ID
-```
-
-`TELEGRAM_CHANNEL_ID` может быть публичным именем канала, например `@channel_name`, если бот добавлен в канал администратором. Если секреты не заданы, Telegram-публикация просто пропускается.
-
-Защита от спама:
-
-- максимум 8 новых сообщений за один cron-запуск;
-- уже отправленные новости отмечаются в KV ключами `telegram:sent:*`;
-- TTL отметки отправки - 7 дней;
-- сообщения отправляются в `parse_mode: HTML`.
-
-Продовый домен:
-
-```text
-https://news-aggr.goretskiy.pro
-```
-
-### KV-кэш
-
-KV namespace `news-aggregator-cache` хранит готовый payload новостей. В `wrangler.toml` namespace привязан как `NEWS_CACHE`:
+Binding в `wrangler.toml`:
 
 ```toml
 [[kv_namespaces]]
@@ -97,33 +51,36 @@ binding = "NEWS_CACHE"
 id = "86aef1c1040a4043b8d733ee21c593b7"
 ```
 
-Cron обновляет новости каждые 10 минут и пишет один ключ `news:all`.
+## Telegram
 
-## Безопасность
+Нужны секреты Worker:
 
-Что реализовано в Worker:
+```text
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHANNEL_ID
+```
 
-- Блокировка очевидных скриптов по User-Agent: `python-requests`, `curl`, `wget`, `scrapy`, `go-http-client`.
-- Ручное обновление через `/api/news?fresh=1` отключено.
-- API отклоняет междоменные запросы по `Origin`/`Referer`.
-- `/robots.txt` отдаёт `Disallow: /`.
-- HTML/API/static-ответы получают базовые заголовки безопасности.
-- `/api/news` поддерживает `ETag` и `304 Not Modified`.
-- `/api/news` отдаёт `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`.
-- Статические ресурсы кэшируются коротко, потому что файлы пока не fingerprinted.
+`TELEGRAM_CHANNEL_ID` может быть публичным именем канала, например `@channel_name`, если бот добавлен в канал администратором.
 
-Что настроено в Cloudflare для `news-aggr.goretskiy.pro`:
+Формат сообщений:
 
-1. **AI Crawl Control**: все 32 краулера из списка Cloudflare переведены в режим `Block`.
-2. `/robots.txt` закрывает сайт от индексации.
-3. KV-кэш включён через привязку `NEWS_CACHE`.
+```html
+<b>Источник</b>
 
-Рекомендованные дополнительные бесплатные настройки Cloudflare:
+<b>Тема новости</b>
 
-1. Включить WAF Managed Rules, если доступны на текущем плане.
-2. Включить Bot Fight Mode, если он не мешает нормальному использованию.
-3. Добавить Rate Limiting для `/api/news`, если настройка доступна на аккаунте.
-4. Держать Cache Rules консервативными для `/api/news`.
+Краткий текст новости...
+
+<a href="https://example.com/news">Читать полностью</a>
+```
+
+Защита от спама:
+
+- максимум 8 новых сообщений за один cron-запуск;
+- отправляются только новости, которых не было в предыдущем `news:all`;
+- уже отправленные новости отмечаются в KV ключами `telegram:sent:*`;
+- TTL sent-ключей - 7 дней;
+- первый cron после пустого KV только заполняет `news:all` и не отправляет старый backlog.
 
 ## Команды
 
@@ -135,25 +92,11 @@ wrangler deploy
 
 Обычный деплой выполняется через Cloudflare Git integration после push в ветку `main`. `wrangler deploy` нужен только для ручного деплоя с локальной машины.
 
-Проверка API:
+## Smoke-проверки
 
-```sh
-curl -i -A "Mozilla/5.0 Smoke Check" https://news-aggr.goretskiy.pro/api/news
-```
-
-Проверка `ETag` / `304 Not Modified`:
-
-```sh
-ETAG="$(curl -sI -A 'Mozilla/5.0 Smoke Check' https://news-aggr.goretskiy.pro/api/news | awk -F': ' 'tolower($1)=="etag"{print $2}' | tr -d '\r')"
-curl -i -A 'Mozilla/5.0 Smoke Check' -H "If-None-Match: $ETAG" https://news-aggr.goretskiy.pro/api/news
-```
-
-Ожидаемые smoke-проверки:
-
-- `/` возвращает HTML.
-- `/api/news` возвращает JSON.
-- `/api/news?fresh=1` возвращает `403`, потому что ручное обновление отключено.
-- `If-None-Match` возвращает `304`.
-- Плохой User-Agent блокируется.
-- Cron-обновление пишет новости в KV.
-- Telegram-публикация отправляет только новые новости и не дублирует уже отправленные.
+- HTTP `fetch()` возвращает `404`.
+- Cron загружает источники.
+- Cron пишет `news:all` в KV.
+- Telegram-публикация отправляет только новые новости.
+- Telegram-сообщения используют HTML parse mode.
+- Повторный cron не дублирует уже отправленные новости.

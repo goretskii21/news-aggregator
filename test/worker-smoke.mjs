@@ -28,42 +28,9 @@ class MemoryKV {
   }
 }
 
-class MemoryCache {
-  constructor() {
-    this.store = new Map();
-  }
-
-  async match(request) {
-    const response = this.store.get(request.url);
-    return response ? response.clone() : undefined;
-  }
-
-  async put(request, response) {
-    this.store.set(request.url, response.clone());
-  }
-
-  async delete(request) {
-    return this.store.delete(request.url);
-  }
-}
-
 function createEnv(overrides = {}) {
   return {
     NEWS_CACHE: new MemoryKV(),
-    ASSETS: {
-      async fetch(request) {
-        const url = new URL(request.url);
-        if (url.pathname === "/app.js") {
-          return new Response("console.log('ok');", {
-            headers: { "content-type": "text/javascript; charset=utf-8" }
-          });
-        }
-
-        return new Response("<!doctype html><html><body>ok</body></html>", {
-          headers: { "content-type": "text/html; charset=utf-8" }
-        });
-      }
-    },
     ...overrides
   };
 }
@@ -80,17 +47,13 @@ function createCtx() {
   };
 }
 
-function request(path, options = {}) {
-  return new Request(`https://news-aggr.goretskiy.pro${path}`, {
-    headers: {
-      "user-agent": "Mozilla/5.0 Smoke Test",
-      ...options.headers
-    }
-  });
+function request(path) {
+  return new Request(`https://example.com${path}`);
 }
 
 let rssFetches = 0;
 const telegramMessages = [];
+
 globalThis.fetch = async (url, options = {}) => {
   if (String(url).startsWith("https://api.telegram.org/")) {
     const body = JSON.parse(options.body || "{}");
@@ -122,75 +85,46 @@ globalThis.fetch = async (url, options = {}) => {
   });
 };
 
-globalThis.caches = { default: new MemoryCache() };
-
-const env = createEnv();
-
 {
-  const response = await worker.fetch(request("/"), env, createCtx());
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type"), /text\/html/);
-  assert.equal(response.headers.get("x-frame-options"), "DENY");
-  assert.match(response.headers.get("content-security-policy"), /default-src 'self'/);
-  assert.match(response.headers.get("cache-control"), /s-maxage=300/);
+  const response = await worker.fetch(request("/"));
+  assert.equal(response.status, 404);
+  assert.equal(await response.text(), "Not Found");
 }
 
 {
-  const response = await worker.fetch(request("/app.js"), env, createCtx());
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=300, stale-while-revalidate=86400");
+  const env = createEnv();
+  const ctx = createCtx();
+  await worker.scheduled({}, env, ctx);
+  await ctx.flush();
+
+  assert.ok(rssFetches > 0);
+  assert.equal(env.NEWS_CACHE.putCount, 1);
+  assert.equal(telegramMessages.length, 0);
+
+  const payload = await env.NEWS_CACHE.get("news:all", { type: "json" });
+  assert.ok(payload.updatedAt);
+  assert.ok(payload.items.length > 0);
+
+  const escapedHtmlItem = payload.items.find((item) => item.title === "Escaped html news");
+  assert.ok(escapedHtmlItem);
+  assert.equal(escapedHtmlItem.excerpt, "Clean text after media tag");
+  assert.doesNotMatch(escapedHtmlItem.excerpt, /<img|src=|<p>/i);
 }
 
 {
-  const response = await worker.fetch(request("/robots.txt"), env, createCtx());
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), "User-agent: *\nDisallow: /\n");
-}
-
-{
-  const response = await worker.fetch(request("/api/news", {
-    headers: { "user-agent": "curl/8.0" }
-  }), env, createCtx());
-  assert.equal(response.status, 403);
-}
-
-{
-  const response = await worker.fetch(request("/api/news", {
-    headers: { origin: "https://example.com" }
-  }), env, createCtx());
-  assert.equal(response.status, 403);
-}
-
-{
-  const emptyEnv = createEnv();
-  globalThis.caches = { default: new MemoryCache() };
-  const response = await worker.fetch(request("/api/news"), emptyEnv, createCtx());
-  assert.equal(response.status, 503);
-  assert.equal(rssFetches, 0);
-}
-
-globalThis.caches = { default: new MemoryCache() };
-const scheduledCtx = createCtx();
-await worker.scheduled({}, env, scheduledCtx);
-await scheduledCtx.flush();
-assert.ok(rssFetches > 0);
-assert.equal(env.NEWS_CACHE.putCount, 1);
-assert.equal(telegramMessages.length, 0);
-
-{
-  const telegramEnv = createEnv({
+  const env = createEnv({
     TELEGRAM_BOT_TOKEN: "telegram-token",
     TELEGRAM_CHANNEL_ID: "@news_channel"
   });
-  await telegramEnv.NEWS_CACHE.put("news:all", JSON.stringify({
+  await env.NEWS_CACHE.put("news:all", JSON.stringify({
     updatedAt: "2026-06-30T11:50:00.000Z",
     items: [{ id: "previous:item", title: "Previous item" }]
   }));
-  globalThis.caches = { default: new MemoryCache() };
+
   telegramMessages.length = 0;
 
   const ctx = createCtx();
-  await worker.scheduled({}, telegramEnv, ctx);
+  await worker.scheduled({}, env, ctx);
   await ctx.flush();
 
   assert.equal(telegramMessages.length, 8);
@@ -203,78 +137,9 @@ assert.equal(telegramMessages.length, 0);
   assert.ok(telegramMessages.every((message) => !message.body.text.includes("<img")));
 
   const secondCtx = createCtx();
-  await worker.scheduled({}, telegramEnv, secondCtx);
+  await worker.scheduled({}, env, secondCtx);
   await secondCtx.flush();
   assert.equal(telegramMessages.length, 8);
-}
-
-const firstCtx = createCtx();
-const first = await worker.fetch(request("/api/news"), env, firstCtx);
-await firstCtx.flush();
-assert.equal(first.status, 200);
-assert.match(first.headers.get("cache-control"), /stale-while-revalidate=600/);
-assert.ok(first.headers.get("etag"));
-const firstPayload = await first.json();
-assert.ok(firstPayload.items.length > 0);
-const escapedHtmlItem = firstPayload.items.find((item) => item.title === "Escaped html news");
-assert.ok(escapedHtmlItem);
-assert.equal(escapedHtmlItem.excerpt, "Clean text after media tag");
-assert.doesNotMatch(escapedHtmlItem.excerpt, /<img|src=|<p>/i);
-assert.ok(rssFetches > 0);
-
-const kvGetsAfterFirst = env.NEWS_CACHE.getCount;
-const rssFetchesAfterFirst = rssFetches;
-const second = await worker.fetch(request("/api/news"), env, createCtx());
-assert.equal(second.status, 200);
-assert.equal(env.NEWS_CACHE.getCount, kvGetsAfterFirst);
-assert.equal(rssFetches, rssFetchesAfterFirst);
-
-{
-  await globalThis.caches.default.put(
-    new Request("https://news-aggregator.internal/api/news"),
-    new Response(JSON.stringify({
-      updatedAt: "2026-06-30T10:00:00.000Z",
-      items: [{ id: "stale-cache-item", title: "Stale cache item" }]
-    }), {
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
-        "x-news-updated-at": "2026-06-30T10:00:00.000Z"
-      }
-    })
-  );
-
-  const staleCtx = createCtx();
-  const response = await worker.fetch(request("/api/news"), env, staleCtx);
-  await staleCtx.flush();
-  assert.equal(response.status, 200);
-  const payload = await response.json();
-  assert.notEqual(payload.items[0].id, "stale-cache-item");
-  assert.ok(env.NEWS_CACHE.getCount > kvGetsAfterFirst);
-}
-
-const notModified = await worker.fetch(request("/api/news", {
-  headers: { "if-none-match": first.headers.get("etag") }
-}), env, createCtx());
-assert.equal(notModified.status, 304);
-assert.equal(await notModified.text(), "");
-
-const weakNotModified = await worker.fetch(request("/api/news", {
-  headers: { "if-none-match": `W/${first.headers.get("etag")}` }
-}), env, createCtx());
-assert.equal(weakNotModified.status, 304);
-assert.equal(await weakNotModified.text(), "");
-
-{
-  const response = await worker.fetch(request("/api/news?fresh=1"), env, createCtx());
-  assert.equal(response.status, 403);
-}
-
-{
-  const ctx = createCtx();
-  const response = await worker.fetch(request("/api/news?fresh=1&token=local-refresh-token"), env, ctx);
-  await ctx.flush();
-  assert.equal(response.status, 403);
 }
 
 console.log("worker smoke checks passed");

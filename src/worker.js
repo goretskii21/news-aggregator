@@ -1,31 +1,9 @@
-const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_NEWS_ITEMS = 320;
 const CACHE_KEY = "news:all";
 const TELEGRAM_SENT_PREFIX = "telegram:sent";
 const TELEGRAM_SENT_TTL_SECONDS = 7 * 24 * 60 * 60;
 const TELEGRAM_MAX_MESSAGES_PER_CRON = 8;
 const TELEGRAM_API_BASE = "https://api.telegram.org";
-const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
-const API_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
-const STATIC_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
-const HTML_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
-const BLOCKED_USER_AGENT_PATTERNS = [
-  /python-requests/i,
-  /\bcurl\b/i,
-  /\bwget\b/i,
-  /scrapy/i,
-  /go-http-client/i
-];
-const HTML_SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests"
-};
-const SECURITY_HEADERS = {
-  "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
-  "x-content-type-options": "nosniff",
-  "referrer-policy": "strict-origin-when-cross-origin",
-  "x-frame-options": "DENY",
-  "permissions-policy": "camera=(), microphone=(), geolocation=()"
-};
 const APPLE_CATEGORIES = ["apple", "software", "hardware", "tech"];
 
 const sources = [
@@ -286,112 +264,31 @@ const sources = [
   }
 ];
 
-let memoryCache = null;
-let memoryCachedAt = 0;
-
 export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    if (isBlockedUserAgent(request)) {
-      return withSecurityHeaders(new Response("Forbidden", { status: 403 }));
-    }
-
-    if (url.pathname === "/api/news") {
-      if (isCrossOriginApiRequest(request)) {
-        return json(
-          {
-            error: "Forbidden",
-            detail: "Cross-origin API requests are not allowed."
-          },
-          403,
-          { "cache-control": "no-store" }
-        );
-      }
-
-      const forceFresh = url.searchParams.get("fresh") === "1";
-      return handleNews(request, env, ctx, forceFresh);
-    }
-
-    if (url.pathname === "/robots.txt") {
-      return text("User-agent: *\nDisallow: /\n", 200, {
-        "cache-control": "public, max-age=3600"
-      });
-    }
-
-    return serveAsset(request, env);
+  async fetch() {
+    return new Response("Not Found", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8" }
+    });
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(refreshNews(env, { purgeEdgeCache: true }));
+    ctx.waitUntil(refreshNews(env));
   }
 };
 
-async function handleNews(request, env, ctx, forceFresh) {
-  try {
-    if (forceFresh) {
-      return json(
-        {
-          error: "Forbidden",
-          detail: "Manual refresh is disabled. News feeds are refreshed only by scheduled cron."
-        },
-        403,
-        { "cache-control": "no-store" }
-      );
-    }
-
-    if (!forceFresh) {
-      const cachedResponse = await caches.default.match(newsCacheRequest());
-      if (cachedResponse) {
-        if (isFreshNewsResponse(cachedResponse)) return maybeNotModified(request, cachedResponse);
-        ctx?.waitUntil?.(caches.default.delete(newsCacheRequest()));
-      }
-
-      const cached = await readCachedNews(env);
-      if (cached) {
-        const response = newsJson(cached);
-        ctx?.waitUntil?.(caches.default.put(newsCacheRequest(), response.clone()));
-        return maybeNotModified(request, response);
-      }
-    }
-
-    return json(
-      {
-        error: "Новости ещё не загружены",
-        detail: "Дождитесь ближайшего cron-обновления. Пользовательские запросы читают новости только из KV."
-      },
-      503,
-      { "cache-control": "public, max-age=30" }
-    );
-  } catch (error) {
-    const cached = await readCachedNews(env, true);
-    if (cached) return newsJson({ ...cached, stale: true }, { "cache-control": "public, max-age=30" });
-    return json({ error: "Не удалось загрузить новости", detail: error.message }, 502);
-  }
-}
-
-async function readCachedNews(env, allowStale = false) {
-  const kvPayload = await env.NEWS_CACHE?.get(CACHE_KEY, { type: "json" });
-  if (kvPayload && (allowStale || Date.now() - Date.parse(kvPayload.updatedAt) < CACHE_TTL_MS)) return kvPayload;
-
-  if (memoryCache && (allowStale || Date.now() - memoryCachedAt < CACHE_TTL_MS)) {
-    return { updatedAt: new Date(memoryCachedAt).toISOString(), items: memoryCache };
-  }
-
-  return null;
+async function readCachedNews(env) {
+  return await env.NEWS_CACHE?.get(CACHE_KEY, { type: "json" });
 }
 
 async function writeCachedNews(env, payload) {
-  memoryCache = payload.items;
-  memoryCachedAt = Date.parse(payload.updatedAt);
-
   if (env.NEWS_CACHE) {
     await env.NEWS_CACHE.put(CACHE_KEY, JSON.stringify(payload));
   }
 }
 
-async function refreshNews(env, options = {}) {
-  const previousPayload = await readCachedNews(env, true);
+async function refreshNews(env) {
+  const previousPayload = await readCachedNews(env);
   const settled = await Promise.allSettled(sources.map(loadSource));
   const items = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
@@ -400,7 +297,6 @@ async function refreshNews(env, options = {}) {
 
   const payload = { updatedAt: new Date().toISOString(), items };
   await writeCachedNews(env, payload);
-  if (options.purgeEdgeCache) await caches.default.delete(newsCacheRequest());
   await publishTelegramNews(env, items, previousPayload?.items || []);
   return payload;
 }
@@ -714,145 +610,10 @@ function uniqueByUrl(items) {
   });
 }
 
-function json(payload, status = 200, headers = {}) {
-  return withSecurityHeaders(new Response(JSON.stringify(payload), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      ...headers
-    }
-  }));
-}
-
-function newsJson(payload, headers = {}) {
-  const body = JSON.stringify(payload);
-  return json(payload, 200, {
-    "cache-control": API_CACHE_CONTROL,
-    etag: createNewsEtag(payload),
-    "content-length": String(new TextEncoder().encode(body).length),
-    "x-news-updated-at": payload.updatedAt || "",
-    ...headers
-  });
-}
-
-function isFreshNewsResponse(response) {
-  const updatedAt = response.headers.get("x-news-updated-at");
-  const updatedAtMs = updatedAt ? Date.parse(updatedAt) : 0;
-  return Number.isFinite(updatedAtMs) && Date.now() - updatedAtMs < CACHE_TTL_MS;
-}
-
-function text(body, status = 200, headers = {}) {
-  return withSecurityHeaders(new Response(body, {
-    status,
-    headers: {
-      "content-type": "text/plain; charset=utf-8",
-      ...headers
-    }
-  }));
-}
-
-function maybeNotModified(request, response) {
-  const etag = response.headers.get("etag");
-  if (etag && etagMatches(request.headers.get("if-none-match"), etag)) {
-    return withSecurityHeaders(new Response(null, {
-      status: 304,
-      headers: {
-        etag,
-        "cache-control": response.headers.get("cache-control") || API_CACHE_CONTROL
-      }
-    }));
-  }
-  return withSecurityHeaders(response);
-}
-
-function etagMatches(ifNoneMatch, etag) {
-  if (!ifNoneMatch) return false;
-  return ifNoneMatch
-    .split(",")
-    .map((value) => normalizeEtag(value))
-    .some((value) => value === "*" || value === normalizeEtag(etag));
-}
-
-function normalizeEtag(value) {
-  return value.trim().replace(/^W\//i, "");
-}
-
-function createNewsEtag(payload) {
-  const updatedAt = payload.updatedAt || "";
-  const count = Array.isArray(payload.items) ? payload.items.length : 0;
-  const firstId = Array.isArray(payload.items) && payload.items[0]?.id ? payload.items[0].id : "";
-  return `"news-${hashString(`${updatedAt}:${count}:${firstId}`)}"`;
-}
-
 function hashString(value) {
   let hash = 5381;
   for (let index = 0; index < value.length; index += 1) {
     hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
   }
   return (hash >>> 0).toString(36);
-}
-
-function newsCacheRequest() {
-  return new Request(NEWS_CACHE_URL, { method: "GET" });
-}
-
-async function serveAsset(request, env) {
-  const response = await env.ASSETS.fetch(request);
-  const url = new URL(request.url);
-  const headers = new Headers(response.headers);
-
-  if (response.ok) {
-    if (isHtmlPath(url.pathname, headers)) {
-      headers.set("cache-control", HTML_CACHE_CONTROL);
-      for (const [name, value] of Object.entries(HTML_SECURITY_HEADERS)) headers.set(name, value);
-    } else {
-      headers.set("cache-control", STATIC_CACHE_CONTROL);
-    }
-  }
-
-  return withSecurityHeaders(new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  }));
-}
-
-function isHtmlPath(pathname, headers) {
-  return pathname === "/" ||
-    pathname.endsWith(".html") ||
-    (headers.get("content-type") || "").includes("text/html");
-}
-
-function withSecurityHeaders(response) {
-  const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
-}
-
-function isBlockedUserAgent(request) {
-  const userAgent = request.headers.get("user-agent") || "";
-  return BLOCKED_USER_AGENT_PATTERNS.some((pattern) => pattern.test(userAgent));
-}
-
-function isCrossOriginApiRequest(request) {
-  const requestUrl = new URL(request.url);
-  for (const headerName of ["origin", "referer"]) {
-    const value = request.headers.get(headerName);
-    if (!value) continue;
-
-    try {
-      const headerUrl = new URL(value);
-      if (headerUrl.hostname !== requestUrl.hostname) return true;
-    } catch {
-      return true;
-    }
-  }
-
-  return false;
 }
