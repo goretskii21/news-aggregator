@@ -1,9 +1,6 @@
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const MANUAL_REFRESH_LIMIT_SECONDS = 5 * 60;
-const NEWS_RETENTION_DAYS = 7;
 const MAX_NEWS_ITEMS = 320;
 const CACHE_KEY = "news:all";
-const REFRESH_LIMIT_PREFIX = "refresh-limit";
 const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
 const API_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
 const STATIC_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
@@ -287,7 +284,6 @@ const sources = [
 
 let memoryCache = null;
 let memoryCachedAt = 0;
-const memoryRefreshLimits = new Map();
 
 export default {
   async fetch(request, env, ctx) {
@@ -323,12 +319,23 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(refreshNews(env, { purgeEdgeCache: true, pruneStoredNews: true }));
+    ctx.waitUntil(refreshNews(env, { purgeEdgeCache: true }));
   }
 };
 
 async function handleNews(request, env, ctx, forceFresh) {
   try {
+    if (forceFresh) {
+      return json(
+        {
+          error: "Forbidden",
+          detail: "Manual refresh is disabled. News feeds are refreshed only by scheduled cron."
+        },
+        403,
+        { "cache-control": "no-store" }
+      );
+    }
+
     if (!forceFresh) {
       const cachedResponse = await caches.default.match(newsCacheRequest());
       if (cachedResponse) {
@@ -344,39 +351,14 @@ async function handleNews(request, env, ctx, forceFresh) {
       }
     }
 
-    if (forceFresh) {
-      if (!isRefreshAuthorized(request, env)) {
-        return json(
-          {
-            error: "Forbidden",
-            detail: "Manual refresh requires a valid refresh token."
-          },
-          403,
-          { "cache-control": "no-store" }
-        );
-      }
-
-      const limit = await checkManualRefreshLimit(request, env);
-      if (!limit.allowed) {
-        return json(
-          {
-            error: "Слишком частое обновление",
-            detail: "Ручное обновление доступно не чаще одного раза в пять минут.",
-            retryAfter: limit.retryAfter
-          },
-          429,
-          {
-            "cache-control": "no-store",
-            "retry-after": String(limit.retryAfter)
-          }
-        );
-      }
-    }
-
-    const payload = await refreshNews(env, { purgeEdgeCache: true });
-    const response = newsJson(payload, forceFresh ? { "cache-control": "no-store" } : {});
-    if (!forceFresh) ctx?.waitUntil?.(caches.default.put(newsCacheRequest(), response.clone()));
-    return maybeNotModified(request, response);
+    return json(
+      {
+        error: "Новости ещё не загружены",
+        detail: "Дождитесь ближайшего cron-обновления. Пользовательские запросы читают новости только из KV."
+      },
+      503,
+      { "cache-control": "public, max-age=30" }
+    );
   } catch (error) {
     const cached = await readCachedNews(env, true);
     if (cached) return newsJson({ ...cached, stale: true }, { "cache-control": "public, max-age=30" });
@@ -384,48 +366,7 @@ async function handleNews(request, env, ctx, forceFresh) {
   }
 }
 
-function isRefreshAuthorized(request, env) {
-  if (!env.REFRESH_TOKEN) return false;
-  const url = new URL(request.url);
-  const token = request.headers.get("x-refresh-token") || url.searchParams.get("token");
-  return token === env.REFRESH_TOKEN;
-}
-
-async function checkManualRefreshLimit(request, env) {
-  const key = `${REFRESH_LIMIT_PREFIX}:${getClientKey(request)}`;
-
-  if (env.NEWS_CACHE) {
-    const previous = await env.NEWS_CACHE.get(key);
-    if (previous) {
-      const retryAfter = Math.max(1, MANUAL_REFRESH_LIMIT_SECONDS - Math.floor((Date.now() - Number(previous)) / 1000));
-      return { allowed: false, retryAfter };
-    }
-
-    await env.NEWS_CACHE.put(key, String(Date.now()), { expirationTtl: MANUAL_REFRESH_LIMIT_SECONDS });
-    return { allowed: true, retryAfter: 0 };
-  }
-
-  const expiresAt = memoryRefreshLimits.get(key) || 0;
-  if (expiresAt > Date.now()) {
-    return { allowed: false, retryAfter: Math.ceil((expiresAt - Date.now()) / 1000) };
-  }
-
-  memoryRefreshLimits.set(key, Date.now() + MANUAL_REFRESH_LIMIT_SECONDS * 1000);
-  return { allowed: true, retryAfter: 0 };
-}
-
-function getClientKey(request) {
-  return request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "anonymous";
-}
-
 async function readCachedNews(env, allowStale = false) {
-  if (env.NEWS_DB) {
-    const storedPayload = await readStoredNews(env.NEWS_DB);
-    if (storedPayload?.items.length) return storedPayload;
-  }
-
   const kvPayload = await env.NEWS_CACHE?.get(CACHE_KEY, { type: "json" });
   if (kvPayload && (allowStale || Date.now() - Date.parse(kvPayload.updatedAt) < CACHE_TTL_MS)) return kvPayload;
 
@@ -439,11 +380,6 @@ async function readCachedNews(env, allowStale = false) {
 async function writeCachedNews(env, payload) {
   memoryCache = payload.items;
   memoryCachedAt = Date.parse(payload.updatedAt);
-
-  if (env.NEWS_DB) {
-    await writeStoredNews(env.NEWS_DB, payload.items, payload.updatedAt);
-    return;
-  }
 
   if (env.NEWS_CACHE) {
     await env.NEWS_CACHE.put(CACHE_KEY, JSON.stringify(payload));
@@ -459,110 +395,8 @@ async function refreshNews(env, options = {}) {
 
   const payload = { updatedAt: new Date().toISOString(), items };
   await writeCachedNews(env, payload);
-  if (options.pruneStoredNews && env.NEWS_DB) await pruneStoredNews(env.NEWS_DB);
   if (options.purgeEdgeCache) await caches.default.delete(newsCacheRequest());
-  return env.NEWS_DB ? await readStoredNews(env.NEWS_DB) : payload;
-}
-
-async function readStoredNews(db) {
-  const cutoff = retentionCutoff();
-  const result = await db.prepare(`
-    SELECT id, source, title, excerpt, url, categories, published_at, updated_at
-    FROM news_items
-    WHERE COALESCE(published_at, fetched_at) >= ?
-    ORDER BY COALESCE(published_at, fetched_at) DESC, updated_at DESC
-    LIMIT ?
-  `).bind(cutoff, MAX_NEWS_ITEMS).all();
-
-  const rows = result.results || [];
-  if (!rows.length) return null;
-
-  return {
-    updatedAt: rows.reduce((latest, row) => row.updated_at > latest ? row.updated_at : latest, rows[0].updated_at),
-    items: rows.map(rowToNewsItem)
-  };
-}
-
-async function writeStoredNews(db, items, updatedAt) {
-  const statements = [];
-
-  for (const item of items) {
-    const publishedAt = item.publishedAt || updatedAt;
-    statements.push(db.prepare(`
-      INSERT INTO news_items (id, url, source, title, excerpt, categories, published_at, fetched_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(url) DO UPDATE SET
-        id = excluded.id,
-        source = excluded.source,
-        title = excluded.title,
-        excerpt = excluded.excerpt,
-        categories = excluded.categories,
-        published_at = excluded.published_at,
-        updated_at = excluded.updated_at
-    `).bind(
-      item.id,
-      item.url,
-      item.source,
-      item.title,
-      item.excerpt,
-      JSON.stringify(item.categories || []),
-      publishedAt,
-      updatedAt,
-      updatedAt
-    ));
-
-    statements.push(db.prepare("DELETE FROM news_item_categories WHERE news_id = ?").bind(item.id));
-    for (const category of item.categories || []) {
-      statements.push(db.prepare(`
-        INSERT OR IGNORE INTO news_item_categories (news_id, category)
-        VALUES (?, ?)
-      `).bind(item.id, category));
-    }
-  }
-
-  await executeD1Batch(db, statements);
-}
-
-async function pruneStoredNews(db) {
-  const cutoff = retentionCutoff();
-  await db.prepare(`
-    DELETE FROM news_item_categories
-    WHERE news_id IN (
-      SELECT id FROM news_items WHERE COALESCE(published_at, fetched_at) < ?
-    )
-  `).bind(cutoff).run();
-  await db.prepare("DELETE FROM news_items WHERE COALESCE(published_at, fetched_at) < ?").bind(cutoff).run();
-}
-
-async function executeD1Batch(db, statements, chunkSize = 50) {
-  for (let index = 0; index < statements.length; index += chunkSize) {
-    await db.batch(statements.slice(index, index + chunkSize));
-  }
-}
-
-function rowToNewsItem(row) {
-  return {
-    id: row.id,
-    source: row.source,
-    categories: parseCategories(row.categories),
-    title: row.title,
-    excerpt: row.excerpt,
-    url: row.url,
-    publishedAt: row.published_at || ""
-  };
-}
-
-function parseCategories(value) {
-  try {
-    const parsed = JSON.parse(value || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function retentionCutoff() {
-  return new Date(Date.now() - NEWS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  return payload;
 }
 
 async function loadSource(source) {

@@ -74,19 +74,12 @@ document.addEventListener("click", (event) => {
 
 await loadNews();
 
-async function loadNews(forceFresh = false) {
+async function loadNews() {
   refreshButton.disabled = true;
   status.textContent = items.length ? "Обновляю список..." : "Загружаю новости...";
 
   try {
-    const response = await fetch(`/api/news${forceFresh ? "?fresh=1" : ""}`, { cache: "no-cache" });
-    if (response.status === 429) {
-      const payload = await response.json();
-      render();
-      status.textContent = `Ручное обновление доступно через ${formatDuration(payload.retryAfter || 300)}.`;
-      return;
-    }
-
+    const response = await fetch("/api/news", { cache: "no-cache" });
     if (!response.ok) throw new Error("Bad response");
 
     const payload = await response.json();
@@ -176,11 +169,6 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
-}
-
-function formatDuration(seconds) {
-  const minutes = Math.ceil(Number(seconds) / 60);
-  return `${minutes} ${pluralize(minutes, "минуту", "минуты", "минут")}`;
 }
 
 function pluralize(value, one, few, many) {

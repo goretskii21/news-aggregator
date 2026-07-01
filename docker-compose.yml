@@ -1,21 +1,4 @@
 services:
-  local-d1:
-    build:
-      context: .
-      dockerfile: Dockerfile.d1
-    container_name: news-aggr-local-d1
-    environment:
-      D1_DB_PATH: /data/news-aggr-d1.sqlite
-    volumes:
-      - local-d1-data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "sqlite3", "/data/news-aggr-d1.sqlite", "select 1;"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-
   news-aggr:
     build:
       context: .
@@ -24,12 +7,6 @@ services:
       HOST: 0.0.0.0
       PORT: 5173
       NODE_ENV: production
-      LOCAL_D1_DB_PATH: /data/news-aggr-d1.sqlite
-    volumes:
-      - local-d1-data:/data
-    depends_on:
-      local-d1:
-        condition: service_healthy
     ports:
       - "5173:5173"
     restart: unless-stopped
@@ -39,6 +16,3 @@ services:
       timeout: 15s
       retries: 3
       start_period: 20s
-
-volumes:
-  local-d1-data:

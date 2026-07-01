@@ -17,8 +17,3 @@ crons = ["*/10 * * * *"]
 [[kv_namespaces]]
 binding = "NEWS_CACHE"
 id = "86aef1c1040a4043b8d733ee21c593b7"
-
-[[d1_databases]]
-binding = "NEWS_DB"
-database_name = "news-aggregator"
-database_id = "4f1aeb4b-19a4-4aba-b034-f156c94770ca"
