@@ -1,6 +1,10 @@
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_NEWS_ITEMS = 320;
 const CACHE_KEY = "news:all";
+const TELEGRAM_SENT_PREFIX = "telegram:sent";
+const TELEGRAM_SENT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const TELEGRAM_MAX_MESSAGES_PER_CRON = 8;
+const TELEGRAM_API_BASE = "https://api.telegram.org";
 const NEWS_CACHE_URL = "https://news-aggregator.internal/api/news";
 const API_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=600";
 const STATIC_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=86400";
@@ -387,6 +391,7 @@ async function writeCachedNews(env, payload) {
 }
 
 async function refreshNews(env, options = {}) {
+  const previousPayload = await readCachedNews(env, true);
   const settled = await Promise.allSettled(sources.map(loadSource));
   const items = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
@@ -396,7 +401,76 @@ async function refreshNews(env, options = {}) {
   const payload = { updatedAt: new Date().toISOString(), items };
   await writeCachedNews(env, payload);
   if (options.purgeEdgeCache) await caches.default.delete(newsCacheRequest());
+  await publishTelegramNews(env, items, previousPayload?.items || []);
   return payload;
+}
+
+async function publishTelegramNews(env, items, previousItems) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHANNEL_ID || !env.NEWS_CACHE) return;
+  if (!previousItems.length) return;
+
+  const previousIds = new Set(previousItems.map((item) => item.id).filter(Boolean));
+  let sentCount = 0;
+  for (const item of items) {
+    if (sentCount >= TELEGRAM_MAX_MESSAGES_PER_CRON) break;
+    if (previousIds.has(item.id)) continue;
+
+    const sentKey = telegramSentKey(item);
+    const wasSent = await env.NEWS_CACHE.get(sentKey);
+    if (wasSent) continue;
+
+    const sent = await sendTelegramMessage(env, formatTelegramMessage(item));
+    if (!sent) continue;
+
+    sentCount += 1;
+    await env.NEWS_CACHE.put(sentKey, "1", { expirationTtl: TELEGRAM_SENT_TTL_SECONDS });
+  }
+}
+
+async function sendTelegramMessage(env, text) {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: env.TELEGRAM_CHANNEL_ID,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: false
+      })
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function formatTelegramMessage(item) {
+  const source = escapeTelegramHtml(item.source || "Источник");
+  const title = escapeTelegramHtml(item.title || "Новость");
+  const excerpt = escapeTelegramHtml(truncate(item.excerpt || "", 360));
+  const url = escapeTelegramHtml(item.url || "");
+
+  return [
+    `<b>${source}</b>`,
+    "",
+    url ? `<a href="${url}">${title}</a>` : `<b>${title}</b>`,
+    excerpt ? `\n${excerpt}` : "",
+    url ? `\n<a href="${url}">Читать полностью</a>` : ""
+  ].filter(Boolean).join("\n");
+}
+
+function telegramSentKey(item) {
+  return `${TELEGRAM_SENT_PREFIX}:${hashString(item.id || item.url || item.title || "")}`;
+}
+
+function escapeTelegramHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 async function loadSource(source) {

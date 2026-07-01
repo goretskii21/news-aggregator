@@ -90,7 +90,16 @@ function request(path, options = {}) {
 }
 
 let rssFetches = 0;
-globalThis.fetch = async (url) => {
+const telegramMessages = [];
+globalThis.fetch = async (url, options = {}) => {
+  if (String(url).startsWith("https://api.telegram.org/")) {
+    const body = JSON.parse(options.body || "{}");
+    telegramMessages.push({ url: String(url), body });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: telegramMessages.length } }), {
+      headers: { "content-type": "application/json" }
+    });
+  }
+
   rssFetches += 1;
   return new Response(`<?xml version="1.0" encoding="utf-8"?>
     <rss version="2.0">
@@ -98,13 +107,13 @@ globalThis.fetch = async (url) => {
         <item>
           <title>Smoke test news</title>
           <description>Smoke test excerpt</description>
-          <link>/news/smoke-${rssFetches}</link>
+          <link>/news/smoke</link>
           <pubDate>Tue, 30 Jun 2026 12:00:00 GMT</pubDate>
         </item>
         <item>
           <title>Escaped html news</title>
           <description>&lt;img src=&quot;https://example.com/image.webp&quot; /&gt;&lt;p&gt;Clean text after media tag&lt;/p&gt;</description>
-          <link>/news/escaped-${rssFetches}</link>
+          <link>/news/escaped</link>
           <pubDate>Tue, 30 Jun 2026 12:01:00 GMT</pubDate>
         </item>
       </channel>
@@ -166,6 +175,37 @@ await worker.scheduled({}, env, scheduledCtx);
 await scheduledCtx.flush();
 assert.ok(rssFetches > 0);
 assert.equal(env.NEWS_CACHE.putCount, 1);
+assert.equal(telegramMessages.length, 0);
+
+{
+  const telegramEnv = createEnv({
+    TELEGRAM_BOT_TOKEN: "telegram-token",
+    TELEGRAM_CHANNEL_ID: "@news_channel"
+  });
+  await telegramEnv.NEWS_CACHE.put("news:all", JSON.stringify({
+    updatedAt: "2026-06-30T11:50:00.000Z",
+    items: [{ id: "previous:item", title: "Previous item" }]
+  }));
+  globalThis.caches = { default: new MemoryCache() };
+  telegramMessages.length = 0;
+
+  const ctx = createCtx();
+  await worker.scheduled({}, telegramEnv, ctx);
+  await ctx.flush();
+
+  assert.equal(telegramMessages.length, 8);
+  assert.ok(telegramMessages.every((message) => message.url === "https://api.telegram.org/bottelegram-token/sendMessage"));
+  assert.ok(telegramMessages.every((message) => message.body.chat_id === "@news_channel"));
+  assert.ok(telegramMessages.every((message) => message.body.parse_mode === "HTML"));
+  assert.ok(telegramMessages.every((message) => message.body.text.includes("<b>")));
+  assert.ok(telegramMessages.every((message) => message.body.text.includes("<a href=")));
+  assert.ok(telegramMessages.every((message) => !message.body.text.includes("<img")));
+
+  const secondCtx = createCtx();
+  await worker.scheduled({}, telegramEnv, secondCtx);
+  await secondCtx.flush();
+  assert.equal(telegramMessages.length, 8);
+}
 
 const firstCtx = createCtx();
 const first = await worker.fetch(request("/api/news"), env, firstCtx);
