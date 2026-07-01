@@ -455,7 +455,7 @@ function formatTelegramMessage(item) {
   return [
     `<b>${source}</b>`,
     "",
-    url ? `<a href="${url}">${title}</a>` : `<b>${title}</b>`,
+    `<b>${title}</b>`,
     excerpt ? `\n${excerpt}` : "",
     url ? `\n<a href="${url}">Читать полностью</a>` : ""
   ].filter(Boolean).join("\n");

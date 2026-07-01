@@ -198,7 +198,8 @@ assert.equal(telegramMessages.length, 0);
   assert.ok(telegramMessages.every((message) => message.body.chat_id === "@news_channel"));
   assert.ok(telegramMessages.every((message) => message.body.parse_mode === "HTML"));
   assert.ok(telegramMessages.every((message) => message.body.text.includes("<b>")));
-  assert.ok(telegramMessages.every((message) => message.body.text.includes("<a href=")));
+  assert.ok(telegramMessages.every((message) => message.body.text.includes("<a href=\"https://")));
+  assert.ok(telegramMessages.every((message) => !message.body.text.includes("\"><b>")));
   assert.ok(telegramMessages.every((message) => !message.body.text.includes("<img")));
 
   const secondCtx = createCtx();
