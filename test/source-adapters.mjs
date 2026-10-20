@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {adapterSources,parseAdapter,loadAdapter} from '../src/source-adapters.js';
+import {adapterSources,parseAdapter,parseGithubHtml,loadAdapter} from '../src/source-adapters.js';
 import {selectNews} from '../src/news-selection.js';
 import {collect} from '../src/topics-worker.js';
 const source=kind=>adapterSources.find(s=>s.kind===kind);
+const githubHtml=await readFile(new URL('fixtures/adapters/github.html',import.meta.url),'utf8');
+assert.equal(parseGithubHtml(source('github'),githubHtml).length,2);
+const fallback=await loadAdapter(source('github'),async url=>String(url).includes('api.github.com')?new Response('',{status:403}):new Response(githubHtml));
+assert.equal(fallback.check.transport,'github-html');assert.equal(fallback.check.apiStatus,403);assert.equal(fallback.check.status,'ok');assert.equal(fallback.items[0].advisory.metadataIncomplete,true);
+assert.equal((await loadAdapter(source('github'),async()=>new Response('',{status:403}))).check.status,'http-error');
+assert.throws(()=>parseGithubHtml(source('github'),'<html>Sign in to GitHub</html>'));
 for(const kind of ['github','blizzard','aion','anthropic']){
  const fixture=await readFile(new URL(`fixtures/adapters/${kind}.${kind==='anthropic'?'html':'json'}`,import.meta.url),'utf8');
  const rows=parseAdapter(source(kind),fixture);assert.ok(rows.length>=2,kind);

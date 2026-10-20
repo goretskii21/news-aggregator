@@ -60,15 +60,35 @@ export function parseAdapter(source,body){
  return normalized(source,rows);
 }
 
+export function parseGithubHtml(source,body){
+ const rows=[];
+ for(const match of body.matchAll(/<li\b[^>]*class="[^"]*Box-row[^\"]*"[^>]*>([\s\S]*?)<\/li>/gi)){
+  const link=match[1].match(/<a\b[^>]*href="([^"]+\/security\/advisories\/GHSA-[^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+  const date=match[1].match(/<relative-time\b[^>]*datetime="([^"]+)"/i)?.[1];
+  if(!link||!date||!/published/i.test(match[1]))continue;
+  const id=link[1].split('/').pop(),severity=match[1].match(/title="Severity: ([^"]+)"/i)?.[1];
+  rows.push({title:`${source.repo.split('/')[1]}: ${id} — ${plain(link[2])}`,url:`https://github.com${link[1]}`,publishedAt:date,excerpt:`${source.repo} ${severity||'unknown'} security advisory`,advisory:{id,severity,affected:[],metadataIncomplete:true}});
+ }
+ if(!rows.length&&!/There (?:aren.t|are no).*?(?:published )?security advisories|No published advisories/i.test(plain(body)))throw new Error('Unrecognized GitHub advisory page');
+ return normalized(source,rows);
+}
+
 export async function loadAdapter(source,fetcher=fetch,{cache,now=Date.now()}={}){
- const key=`adapters:v1:${source.id}`,started=Date.now();let httpStatus;
+ const key=`adapters:v2:${source.id}`,started=Date.now();let httpStatus,apiStatus,transport=source.kind;
  let previous;
  if(cache){try{previous=JSON.parse(await cache.get(key));}catch{} }
  if(previous?.nextAt>now)return {items:previous.items||[],check:{...previous.check,cached:true,nextCheckAt:new Date(previous.nextAt).toISOString()}};
  let items=[],status,retryMs=3600000;
  try{
   const response=await fetcher(source.url,{headers:{'User-Agent':'news-aggregator/1.0','Accept':source.kind==='github'?'application/vnd.github+json':'*/*'},signal:AbortSignal.timeout(15000),redirect:'follow'});httpStatus=response.status;
-  if(!response.ok){status='http-error';const retry=Number(response.headers.get('retry-after'));if(Number.isFinite(retry)&&retry>0)retryMs=Math.min(86400000,Math.max(retryMs,retry*1000));}
+  if(!response.ok){
+   status='http-error';const retry=Number(response.headers.get('retry-after'));if(Number.isFinite(retry)&&retry>0)retryMs=Math.min(86400000,Math.max(retryMs,retry*1000));
+   if(source.kind==='github'&&[403,429].includes(httpStatus)){
+    apiStatus=httpStatus;transport='github-html';
+    const fallback=await fetcher(`https://github.com/${source.repo}/security/advisories`,{headers:{'User-Agent':'news-aggregator/1.0'},signal:AbortSignal.timeout(15000)});httpStatus=fallback.status;
+    if(fallback.ok){items=parseGithubHtml(source,await fallback.text());status=items.length?'ok':'empty-source';}
+   }
+  }
   else{
    let text=await response.text();if(text.length>2000000)throw new Error('Oversized source');
    if(source.kind==='feed'){
@@ -92,7 +112,7 @@ export async function loadAdapter(source,fetcher=fetch,{cache,now=Date.now()}={}
    items=parseAdapter(source,text);status=items.length?'ok':source.kind==='github'?'empty-source':'schema-or-empty-source';
   }
  }catch(error){status=/Timeout|Abort/.test(error.name)?'timeout':'transport-or-parse-error';}
- const check={name:source.name,adapter:source.kind,status,httpStatus,items:items.length,durationMs:Date.now()-started,checkedAt:new Date(now).toISOString()};
+ const check={name:source.name,adapter:source.kind,transport,apiStatus,status,httpStatus,items:items.length,durationMs:Date.now()-started,checkedAt:new Date(now).toISOString()};
  // Bounded normalized cache: one refresh/hour, including failures. Never cache secrets.
  if(cache)await cache.put(key,JSON.stringify({nextAt:now+retryMs,items,check}),{expirationTtl:Math.ceil(retryMs/1000)+3600});
  return {items,check};
