@@ -4,7 +4,7 @@ compatibility_date = "2026-06-30"
 workers_dev = false
 
 [vars]
-NEWS_PIPELINE_MODE = "shadow"
+NEWS_PIPELINE_MODE = "topics"
 TELEGRAM_DELIVERY_ENABLED = "false"
 TELEGRAM_GROUP_CHAT_ID = "-1004292521513"
 

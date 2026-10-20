@@ -3,8 +3,8 @@
 ## Production: проверка очереди без отправки в новую группу
 
 Cloudflare разворачивает `main` через Git integration. `wrangler.toml` использует
-`src/production-worker.js`: в режиме `NEWS_PIPELINE_MODE=shadow` действующий
-канал продолжает работать, а новые источники наполняют SQLite Durable Object
+`src/production-worker.js`: в режиме `NEWS_PIPELINE_MODE=topics` старый канал больше не вызывается,
+а новые источники наполняют SQLite Durable Object
 `NewsDelivery`. `TELEGRAM_DELIVERY_ENABLED=false` блокирует отправку в новую группу.
 Режим `legacy` выполняет только старую рассылку; `topics` — только новую очередь.
 Включать отправку следует отдельно, после проверки источников и очереди из Cloudflare.
