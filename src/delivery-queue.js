@@ -27,15 +27,29 @@ export function enqueue(state,groups,now){
     }
   }
 }
-export function messageFor(topic,items){
-  return `${topics[topic]}\n\n`+items.map((i,n)=>`${n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n');
+export function messageFor(topic,items,offset=0){
+  return `${topics[topic]}\n\n`+items.map((i,n)=>`${offset+n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n');
+}
+export function messageParts(topic,items){
+  const groups=[];let current=[];
+  for(const item of items){
+    if(current.length && messageFor(topic,[...current,item],10).length>3800){groups.push(current);current=[];}
+    current.push(item);
+  }
+  if(current.length)groups.push(current);
+  let offset=0;
+  return groups.map((chunk,index)=>{
+    let text=messageFor(topic,chunk,offset);offset+=chunk.length;
+    if(groups.length>1)text=text.replace(topics[topic],`${topics[topic]} (${index+1}/${groups.length})`);
+    return {items:chunk,text};
+  });
 }
 export function pendingBatch(state,topic){
   const items=[],sourceCounts=new Map();
   for(const item of state.pending.filter(i=>i.topic===topic)){
-    if(items.length>=(topic==='critical'?1:5))break;
-    if((sourceCounts.get(item.source)||0)>=2)continue;
-    if(messageFor(topic,[...items,item]).length<=3900){items.push(item);sourceCounts.set(item.source,(sourceCounts.get(item.source)||0)+1);}
+    if(items.length>=(topic==='critical'?1:10))break;
+    if((sourceCounts.get(item.source)||0)>=3)continue;
+    if(messageFor(topic,[item]).length<=3800){items.push(item);sourceCounts.set(item.source,(sourceCounts.get(item.source)||0)+1);}
   }
   return items;
 }
@@ -49,20 +63,26 @@ export async function deliver(state,{now,save,send,enabled}){
       if(!slot || (topic!=='critical' && state.slots[topic+'/'+slot]))continue;
       const items=pendingBatch(state,topic);
       if(!items.length)continue;
-      job={slot,items,attempts:0,nextAt:now};state.jobs[topic]=job;
+      job={slot,items,parts:messageParts(topic,items),partIndex:0,attempts:0,nextAt:now};state.jobs[topic]=job;
       await save(state);
     }
     if(job.nextAt>now)continue;
+    // Freeze parts for retries and support jobs saved before multipart delivery.
+    job.parts ||= messageParts(topic,job.items);job.partIndex ||= 0;
+    const part=job.parts[job.partIndex];
     // Persist a recovery delay before the request: a crash must not cause an immediate storm.
     job.nextAt=now+60000;state.nextSendAt=now+10000;await save(state);
     let result;
-    try{result=await send(topic,messageFor(topic,job.items),{silent:silentDigest(topic,job.slot)});}catch{result={ok:false};}
+    try{result=await send(topic,part.text,{silent:silentDigest(topic,job.slot)});}catch{result={ok:false};}
     if(result.ok){
-      const keys=new Set(job.items.map(i=>i.key));
+      const keys=new Set(part.items.map(i=>i.key));
       state.pending=state.pending.filter(i=>!keys.has(i.key));
       for(const key of keys)state.seen[key]=now;
-      if(topic!=='critical')state.slots[topic+'/'+job.slot]=now;
-      delete state.jobs[topic];state.sent++;
+      job.partIndex++;state.sent++;
+      if(job.partIndex===job.parts.length){
+        if(topic!=='critical')state.slots[topic+'/'+job.slot]=now;
+        delete state.jobs[topic];
+      }else{job.attempts=0;job.nextAt=now+4000;delete job.lastError;}
     }else{
       job.attempts++;
       job.nextAt=now+Math.max(60000*Math.min(60,2**Math.min(job.attempts,6)),(result.retryAfter||0)*1000);

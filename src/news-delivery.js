@@ -1,4 +1,4 @@
-import { emptyState, enqueue, deliver, routes, messageFor, pendingBatch } from './delivery-queue.js';
+import { emptyState, enqueue, deliver, routes, messageParts, pendingBatch } from './delivery-queue.js';
 import {reviewPending} from './queue-review.js';
 export class NewsDelivery {
   constructor(ctx,env){this.ctx=ctx;this.env=env;this.tail=Promise.resolve();}
@@ -28,10 +28,11 @@ export class NewsDelivery {
     await this.process(state);
     const byTopic=Object.fromEntries(Object.keys(routes).map(topic=>[topic,state.pending.filter(i=>i.topic===topic).length]));
     const preview=Object.fromEntries(Object.keys(routes).map(topic=>{
-      const items=state.jobs[topic]?.items||pendingBatch(state,topic);
-      return [topic,items.length?messageFor(topic,items):null];
+      const job=state.jobs[topic];
+      const parts=job?(job.parts?.slice(job.partIndex||0)||messageParts(topic,job.items)):messageParts(topic,pendingBatch(state,topic));
+      return [topic,parts.length?parts.map(p=>p.text).join('\n\n———\n\n'):null];
     }));
-    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,filtered:state.filtered||0,reclassified:state.reclassified||0,schedule:{timezone:'Europe/Kyiv',hours:[0,6,12,18],silentHour:0},byTopic,preview});
+    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,filtered:state.filtered||0,reclassified:state.reclassified||0,digestLimit:10,sourceLimit:3,schedule:{timezone:'Europe/Kyiv',hours:[0,6,12,18],silentHour:0},byTopic,preview});
   });}
   async alarm(){return this.serial(async()=>this.process(await this.load()));}
   async process(state){

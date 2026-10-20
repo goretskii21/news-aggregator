@@ -15,11 +15,11 @@ assert.ok(slotFor('ai',now));assert.ok(slotFor('git',now));
 assert.ok(slotFor('git',now+600000));assert.equal(slotFor('ai',now+1800000),null);
 assert.ok(slotFor('ai',at('2026-12-01T04:00:00Z'))); // winter UTC offset.
 assert.ok(slotFor('games',at('2026-10-20T15:10:00Z')));
-enqueue(state,{ai:Array.from({length:7},(_,i)=>({...item(i),source:'Source '+i%3}))},now);
-enqueue(state,{ai:[item(0)]},now);assert.equal(state.pending.length,7);
+enqueue(state,{ai:Array.from({length:12},(_,i)=>({...item(i),source:'Source '+i%4}))},now);
+enqueue(state,{ai:[item(0)]},now);assert.equal(state.pending.length,12);
 await run(now,{enabled:false});assert.equal(calls.length,0);
 await run();assert.equal(calls.length,1);assert.equal(state.pending.length,2);
-assert.ok(calls[0].text.includes('News 4'));assert.ok(!calls[0].text.includes('News 5'));
+assert.ok(calls[0].text.includes('News 9'));assert.ok(!calls[0].text.includes('News 10'));
 await run(now+60000);assert.equal(calls.length,1); // one batch per slot.
 state=structuredClone(snapshot);enqueue(state,{ai:[item(0)]},now);assert.equal(state.pending.length,2);
 await run(at('2026-10-20T15:00:00Z'));assert.equal(state.pending.length,0);

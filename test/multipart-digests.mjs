@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {emptyState,enqueue,deliver,pendingBatch,messageParts} from '../src/delivery-queue.js';
+const now=Date.parse('2026-10-20T03:00:00Z');
+const news=Array.from({length:12},(_,i)=>({title:'News '+i+' '+ 'x'.repeat(210),source:'Source '+i%4,url:'https://example.com/'+i+'/'+'u'.repeat(450)}));
+let state=emptyState();enqueue(state,{ai:news},now);
+const selected=pendingBatch(state,'ai');assert.equal(selected.length,10);for(const s of new Set(selected.map(i=>i.source)))assert.ok(selected.filter(i=>i.source===s).length<=3);
+const parts=messageParts('ai',selected);assert.equal(parts.length,2);assert.equal(parts.flatMap(p=>p.items).length,10);assert.ok(parts.every(p=>p.text.length<3900));assert.ok(parts[1].text.includes('6. News 5'));
+let snapshot,requests=[];const save=async s=>{snapshot=structuredClone(s);};
+const run=(time,send)=>deliver(state,{now:time,enabled:true,save,send});
+await run(now,async(topic,text)=>{requests.push(text);return {ok:true};});
+assert.equal(state.sent,1);assert.equal(state.jobs.ai.partIndex,1);assert.equal(state.pending.length,12-parts[0].items.length);assert.equal(Object.keys(state.slots).length,0);
+state=structuredClone(snapshot);
+await run(now+60000,async(topic,text)=>{requests.push(text);return {ok:false,code:429,retryAfter:180};});
+assert.equal(requests[1],parts[1].text);assert.equal(state.jobs.ai.partIndex,1);assert.equal(state.sent,1);
+state=structuredClone(snapshot);
+await run(now+120000,async()=>{throw new Error('Should respect group retry_after');});assert.equal(requests.length,2);
+await run(now+240000,async(topic,text)=>{requests.push(text);return {ok:true};});
+assert.equal(requests[2],parts[1].text);assert.equal(state.pending.length,2);assert.equal(state.sent,2);assert.equal(state.jobs.ai,undefined);assert.equal(Object.keys(state.slots).length,1);
+await run(now+300000,async()=>{throw new Error('Must not send a second batch in the same slot');});assert.equal(state.sent,2);
+state=emptyState();enqueue(state,{ai:news},now);const key=state.pending[0].key;
+// Older, prepared single-message jobs remain deliverable after the upgrade.
+state.jobs.ai={slot:'2026-10-20/06:00',items:[state.pending[0]],attempts:0,nextAt:now};
+await run(now,async()=>({ok:true}));assert.ok(state.seen[key]);assert.equal(state.jobs.ai,undefined);
+console.log('Ten-item multipart digests: source cap, message length, numbering, partial ack, retry, restart and legacy jobs passed.');
