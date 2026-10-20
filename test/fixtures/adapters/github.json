@@ -1,0 +1,73 @@
+[
+  {
+    "state": "published",
+    "withdrawn_at": null,
+    "summary": "Docker Engine insecure-registry fallback via malicious DNS responses",
+    "html_url": "https://github.com/moby/moby/security/advisories/GHSA-7cfq-22r6-qp73",
+    "published_at": "2026-10-01T21:19:06Z",
+    "description": "Docker Engine classifies a registry hostname as insecure using an any-match DNS check. `loadInsecureRegistries()` injects `127.0.0.0/8` and `::1/128` as insecure CIDRs by default. `isCIDRMatch` resolved all of the hostname's addresses and returns true if a single address is in the insecure CIDR list",
+    "ghsa_id": "GHSA-7cfq-22r6-qp73",
+    "cve_id": "CVE-2026-92543",
+    "severity": "high",
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "go",
+          "name": "github.com/moby/moby/v2"
+        },
+        "vulnerable_version_range": "< v2.0.0-beta.25",
+        "patched_versions": "v2.0.0-beta.25",
+        "vulnerable_functions": []
+      },
+      {
+        "package": {
+          "ecosystem": "",
+          "name": "Docker Engine"
+        },
+        "vulnerable_version_range": "< 29.8.2",
+        "patched_versions": "29.8.2",
+        "vulnerable_functions": []
+      }
+    ]
+  },
+  {
+    "state": "published",
+    "withdrawn_at": null,
+    "summary": "Blind VXLAN injection into encrypted overlay networks from cluster peer",
+    "html_url": "https://github.com/moby/moby/security/advisories/GHSA-6m9p-4h64-m6vh",
+    "published_at": "2026-10-01T21:18:22Z",
+    "description": "The firewall rules which mark VXLAN datagrams for encryption indiscriminately match both authentic VXLAN datagrams sent from the kernel and forged datagrams sent by user processes. Any packet sent from the host network namespace of a Linux Swarm node is encrypted with the overlay-network IPsec param",
+    "ghsa_id": "GHSA-6m9p-4h64-m6vh",
+    "cve_id": "CVE-2026-92542",
+    "severity": "medium",
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "go",
+          "name": "github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay"
+        },
+        "vulnerable_version_range": "<= v2.0.0-beta.24",
+        "patched_versions": "v2.0.0-beta.25",
+        "vulnerable_functions": []
+      },
+      {
+        "package": {
+          "ecosystem": "go",
+          "name": "github.com/docker/docker/libnetwork/drivers/overlay"
+        },
+        "vulnerable_version_range": "<= v25.0.18, > v26.0.0",
+        "patched_versions": "v25.0.19",
+        "vulnerable_functions": []
+      },
+      {
+        "package": {
+          "ecosystem": "",
+          "name": "Docker Engine"
+        },
+        "vulnerable_version_range": "<= 25.0.18, 26.0.0 - 29.8.1",
+        "patched_versions": "29.8.2",
+        "vulnerable_functions": []
+      }
+    ]
+  }
+]

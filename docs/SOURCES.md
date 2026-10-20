@@ -2,7 +2,7 @@
 
 Рабочий каталог и резерв по состоянию на **20 октября 2026**. Подключение сверено с [каталогом RSS/Atom](../src/source-catalog.js) и [обработчиком CISA KEV](../src/topics-worker.js). Последняя доступная проверка из Cloudflare: **20.10.2026, 16:11:08 по Киеву**. Это снимок доступности, а не постоянно обновляемый статус.
 
-В рабочий опрос включены **74 RSS/Atom-ленты и 1 JSON-поток CISA KEV**. Ещё **9 страниц находятся в резерве** и не собираются: для них нужны HTML/API-адаптеры. Всего в таблицах 84 уникальных адреса; некоторые повторяются в разных категориях. Несколько лент могут принадлежать одному издателю.
+В рабочий опрос включены **74 RSS/Atom-ленты и 1 JSON-поток CISA KEV**. Ещё **9 источников включены через адаптеры** (API, HTML и RSS Google с восстановлением даты со страницы статьи). Всего в таблицах 84 уникальных адреса; некоторые повторяются в разных категориях. Несколько лент могут принадлежать одному издателю.
 
 «Подключён» означает, что Worker пытается загрузить источник каждые 10 минут, включая источники с временной ошибкой. Это не означает отправку каждой записи: действуют фильтры, окно актуальности, дедупликация и лимиты дайджеста. OK означает успешный разбор в указанном запуске; число записей относится ко всей полученной ленте, а не к числу отобранных новостей.
 
@@ -24,17 +24,17 @@
 
 Docker Engine/Swarm разных поколений, Ansible, Ubuntu 22.04+ и связанные компоненты. Материал из security-ленты — кандидат на оценку, а не автоматически Critical. Автоматический срочный сигнал сейчас требует релевантной записи CISA KEV.
 
-6 подключённых потоков; 4 в резерве.
+6 RSS/JSON-потоков; 4 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
 | [Ubuntu Security Notices](https://ubuntu.com/security/notices/rss.xml) | EN | Официальный | RSS/Atom · подключён | Тайм-аут |
 | [CISA KEV](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json) | EN | Официальный | JSON · подключён | OK · 1748 записей |
 | [Docker Security](https://www.docker.com/blog/category/security/feed/) | EN | Официальный | RSS/Atom · подключён | OK · 10 записей |
-| [Moby advisories](https://github.com/moby/moby/security/advisories) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
-| [Ansible advisories](https://github.com/ansible/ansible/security/advisories) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
-| [containerd advisories](https://github.com/containerd/containerd/security/advisories) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
-| [runc advisories](https://github.com/opencontainers/runc/security/advisories) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
+| [Moby advisories](https://github.com/moby/moby/security/advisories) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
+| [Ansible advisories](https://github.com/ansible/ansible/security/advisories) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
+| [containerd advisories](https://github.com/containerd/containerd/security/advisories) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
+| [runc advisories](https://github.com/opencontainers/runc/security/advisories) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
 | [SANS Internet Storm Center](https://isc.sans.edu/rssfeed.xml) | EN | Официальный | RSS/Atom · подключён | OK · 10 записей |
 | [OpenNET](https://www.opennet.ru/opennews/opennews_all_utf.rss) | RU | Редакционный | RSS/Atom · подключён | OK · 40 записей |
 | [SecurityLab](https://www.securitylab.ru/_services/export/rss/news/) | RU | Редакционный | RSS/Atom · подключён | OK · 100 записей |
@@ -45,15 +45,15 @@ Docker Engine/Swarm разных поколений, Ansible, Ubuntu 22.04+ и �
 
 OpenAI, Claude/Anthropic, Gemini и практические изменения моделей, API и инструментов. Технические материалы Hugging Face дополняют новости производителей.
 
-10 подключённых потоков; 2 в резерве.
+10 RSS/JSON-потоков; 2 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
 | [OpenAI News](https://openai.com/news/rss.xml) | EN | Официальный | RSS/Atom · подключён | OK · 1300 записей |
-| [Anthropic News](https://www.anthropic.com/news) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
+| [Anthropic News](https://www.anthropic.com/news) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
 | [Google Gemini](https://blog.google/products/gemini/rss/) | EN | Официальный | RSS/Atom · подключён | OK · 20 записей |
 | [Google DeepMind](https://deepmind.google/blog/rss.xml) | EN | Официальный | RSS/Atom · подключён | OK · 100 записей |
-| [Google Developers AI](https://developers.googleblog.com/en/) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
+| [Google Developers AI](https://developers.googleblog.com/en/) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
 | [Hugging Face](https://huggingface.co/blog/feed.xml) | EN | Официальный | RSS/Atom · подключён | OK · 884 записей |
 | [Microsoft AI Blog](https://news.microsoft.com/source/topics/ai/feed/) | EN | Официальный | RSS/Atom · подключён | HTTP 403 |
 | [Claude Code releases](https://github.com/anthropics/claude-code/releases.atom) | EN | Официальный | RSS/Atom · подключён | OK · 10 записей |
@@ -68,7 +68,7 @@ OpenAI, Claude/Anthropic, Gemini и практические изменения 
 
 GitLab/GitHub: CI/CD, Actions, релизы, изменения поведения и ограничения сервисов. Общие ленты фильтруются по заголовку.
 
-9 подключённых потоков; 0 в резерве.
+9 RSS/JSON-потоков; 0 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -88,7 +88,7 @@ GitLab/GitHub: CI/CD, Actions, релизы, изменения поведени
 
 Docker, Swarm, Kubernetes и экосистема контейнеров. Релизы и практические изменения; security-only ленты обрабатываются отдельно.
 
-11 подключённых потоков; 0 в резерве.
+11 RSS/JSON-потоков; 0 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -110,7 +110,7 @@ Docker, Swarm, Kubernetes и экосистема контейнеров. Рел
 
 AWS, Hetzner, Cloudflare: инфраструктура, продукты и существенные инциденты. Плановые работы без актуального влияния не включаются автоматически.
 
-10 подключённых потоков; 1 в резерве.
+10 RSS/JSON-потоков; 1 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -121,7 +121,7 @@ AWS, Hetzner, Cloudflare: инфраструктура, продукты и су
 | [Cloudflare Changelog](https://developers.cloudflare.com/changelog/rss/index.xml) | EN | Официальный | RSS/Atom · подключён | OK · 1369 записей |
 | [Cloudflare Status](https://www.cloudflarestatus.com/history.atom) | EN | Официальный | RSS/Atom · подключён | OK · 25 записей |
 | [Hetzner Status](https://status.hetzner.com/en.atom) | EN | Официальный | RSS/Atom · подключён | OK · 10 записей |
-| [Hetzner News](https://www.hetzner.com/news/) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 429; нужен адаптер |
+| [Hetzner News](https://www.hetzner.com/news/) | EN | Официальный | Адаптер · подключён | Windows: HTTP 429; повторы с паузой ≥ 1 ч |
 | [Microsoft Azure Blog](https://azure.microsoft.com/en-us/blog/feed/) | EN | Официальный | RSS/Atom · подключён | OK · 10 записей |
 | [Habr News](https://habr.com/ru/rss/news/?fl=ru) | RU | Редакционный | RSS/Atom · подключён | OK · 40 записей |
 | [CNews](https://www.cnews.ru/inc/rss/news.xml) | RU | Редакционный | RSS/Atom · подключён | OK · 200 записей |
@@ -132,7 +132,7 @@ AWS, Hetzner, Cloudflare: инфраструктура, продукты и су
 
 Entra, Azure, M365, Exchange, Intune, Windows и серверные изменения. Comss делится между Microsoft и Linux по заголовку.
 
-12 подключённых потоков; 0 в резерве.
+12 RSS/JSON-потоков; 0 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -155,7 +155,7 @@ Entra, Azure, M365, Exchange, Intune, Windows и серверные измене
 
 Ubuntu, Linux, Ansible, ядро, OpenWrt, DNS и сети. Уязвимости требуют отдельной проверки применимости к версиям пользователя.
 
-11 подключённых потоков; 0 в резерве.
+11 RSS/JSON-потоков; 0 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -177,7 +177,7 @@ Ubuntu, Linux, Ansible, ядро, OpenWrt, DNS и сети. Уязвимости
 
 macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсеиваются продажи телефонов, аксессуары, слухи и предварительные релизы.
 
-11 подключённых потоков; 0 в резерве.
+11 RSS/JSON-потоков; 0 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -199,7 +199,7 @@ macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсе�
 
 Игровые новости в целом; приоритет Diablo IV, AION 2 и основной WoW, без ограничения только этими играми. WoW: Forever считается общей игровой новостью.
 
-12 подключённых потоков; 2 в резерве.
+12 RSS/JSON-потоков; 2 дополнительных адаптера.
 
 | Источник / ссылка на ленту или страницу | Язык | Тип источника | Подключение | Последняя проверка |
 |---|---|---|---|---|
@@ -208,8 +208,8 @@ macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсе�
 | [Rock Paper Shotgun](https://www.rockpapershotgun.com/feed) | EN | Редакционный | RSS/Atom · подключён | OK · 100 записей |
 | [GamesIndustry.biz](https://www.gamesindustry.biz/feed) | EN | Редакционный | RSS/Atom · подключён | OK · 100 записей |
 | [IGN](https://feeds.ign.com/ign/all) | EN | Редакционный | RSS/Atom · подключён | HTTP 403 |
-| [Blizzard News](https://news.blizzard.com/en-us) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
-| [AION 2 official announcements](https://aion2.plaync.com/en-us/board/notice/list) | EN | Официальный | Резерв · HTML/API | Windows: HTTP 200; нужен адаптер |
+| [Blizzard News](https://news.blizzard.com/en-us) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
+| [AION 2 official announcements](https://aion2.plaync.com/en-us/board/notice/list) | EN | Официальный | Адаптер · подключён | Адаптер добавлен 20.10; актуальный результат — в diagnostics |
 | [3DNews](https://3dnews.ru/news/rss/) | RU | Редакционный | RSS/Atom · подключён | OK · 50 записей |
 | [GoHa](https://www.goha.ru/rss/news) | RU | Редакционный | RSS/Atom · подключён | OK · 50 записей |
 | [StopGame](https://rss.stopgame.ru/rss_all.xml) | RU | Редакционный | RSS/Atom · подключён | OK · 50 записей |
@@ -223,8 +223,8 @@ macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсе�
 - В снимке Cloudflare Microsoft AI Blog и IGN отвечают HTTP 403; Ubuntu Security Notices и Ubuntu Blog достигают тайм-аута; у PlayGround загрузка тела обрывается по тайм-ауту после HTTP 200. Они остаются в повторном опросе.
 - Cloudflare Blog и Apple Developer News восстановились в последующей проверке без замены URL.
 - Доступность русских ресурсов с Windows в Украине и из Cloudflare различается. OpenNET, CNews, AppleInsider.ru и Igromania не исключены по локальным тайм-аутам и проверяются на стороне Worker.
-- Официальные страницы Anthropic, Blizzard и AION 2 находятся в резерве. Новости о них пока поступают из подключённых технических/игровых изданий; наличие страницы в таблице не означает готовый сбор с неё.
-- GitHub advisory-страницы Moby, Ansible, containerd и runc пока не подключены отдельными адаптерами. Поэтому перечень не гарантирует полное покрытие всех уязвимостей.
+- Anthropic разбирается из HTML, Blizzard и AION 2 — через публичные JSON-списки их сайтов. Эти API не имеют гарантии стабильности; изменение схемы будет видно в diagnostics.
+- GitHub advisories подключены через публичный API без токена. Ansible вернул HTTP 200 и пустой список: это не доказательство отсутствия CVE. Покрытие ограничено опубликованными repository advisories, максимум 100 последних на репозиторий. Отозванные записи исключаются. Уязвимые/исправленные диапазоны сохраняются в нормализованных данных адаптера; автоматического сопоставления с инвентаризацией серверов пока нет. Срочность по-прежнему определяется CISA KEV.
 - Возможный официальный резерв Ubuntu: [данные Canonical в формате OSV](https://github.com/canonical/ubuntu-security-notices). Он ещё не подключён.
 
 ## Как обновлять каталог
@@ -235,3 +235,11 @@ macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсе�
 4. Изменение общего фильтра находится в `src/news-selection.js`. Для пересмотра уже накопленной очереди обновить версию правил в `src/queue-review.js` и проверить миграцию тестами.
 
 Секреты и Telegram ID здесь не нужны. Основной код не загружает таблицу Markdown: поведение определяется исходниками, а таблица служит документацией.
+
+## Режим адаптеров и расход
+
+Код: [source-adapters.js](../src/source-adapters.js). Девять источников обновляются раз в час; между обновлениями используется приватный KV-кэш нормализованных записей. Ошибки тоже кэшируются на час, `Retry-After` может увеличить паузу до суток. Cron остаётся каждые 10 минут. Google RSS не содержит дат: максимум для 10 записей за обновление дата берётся со страницы статьи; без подтверждённой даты запись исключается. Google Developers фильтруется по AI.
+
+Локальная проверка 20.10.2026: Moby — 26, containerd — 33, runc — 13, Anthropic — 14, Google — 8, Blizzard — 15, AION 2 — 10 записей; Ansible — пустой список. Hetzner — HTTP 429. Для Hetzner реализован разбор JSON-LD и датированных HTML article; на реальном содержимом он ещё не подтверждён из-за ограничения доступа. Защита сайта не обходится. Исторические статусы в таблицах выше относятся к старому снимку RSS; текущие статусы адаптеров хранятся отдельно в том же `topics:diagnostics` с `checkedAt` и `cached`.
+
+Недельная оценка нагрузки и команда снятия метрик: [USAGE.md](USAGE.md).

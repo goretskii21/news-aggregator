@@ -1,0 +1,119 @@
+{
+  "contentItems": [
+    {
+      "contentId": "bltcc3556f4e1ff6ff4",
+      "contentType": "blogs",
+      "context": {
+        "locale": "en-us"
+      },
+      "properties": {
+        "title": "Channel Your Inner Rexxar with this Beastly Bundle",
+        "internalTitle": "Channel Your Inner Rexxar with this Beastly Bundle:24310657",
+        "cxpProduct": {
+          "cxpProductId": "blt2caca37e42f19839",
+          "titleId": 5730135,
+          "title": "World of Warcraft",
+          "internalTitle": "World of Warcraft",
+          "productCode": "WoW",
+          "segment": "world-of-warcraft",
+          "logo": {
+            "imageUrl": "https://blz-contentstack-images.akamaized.net/v3/assets/blt286175c11a6b3f4c/blt637a995645d7e161/5d48a388a58fc57f3dafd9f1/world-of-warcraft.svg",
+            "imageFileType": "image/svg+xml",
+            "imageAltText": "World of Warcraft",
+            "url": "https://blz-contentstack-images.akamaized.net/v3/assets/blt286175c11a6b3f4c/blt637a995645d7e161/5d48a388a58fc57f3dafd9f1/world-of-warcraft.svg",
+            "fileType": "image/svg+xml",
+            "altText": "World of Warcraft",
+            "width": 512,
+            "height": 512
+          },
+          "context": {
+            "locale": "en-us"
+          },
+          "tactProductCode": "wow",
+          "gamePackageId": ""
+        },
+        "cxpProductId": "blt2caca37e42f19839",
+        "summary": "The wildest pack filled with in-game items that invoke the Spirit of Rexxar awaits your modern World of Warcraft (currently Midnight™) characters. For a limited time, get a transmog set, a toy to make Hunter combat pets look like Rexxar’s loyal combat pets, and a housing decor item worthy of a Beastmaster! ",
+        "cardActions": [],
+        "category": "News",
+        "staticAsset": {
+          "imageUrl": "//bnetcmsus-a.akamaihd.net/cms/blog_thumbnail/m5/M5TVE9OQS1M91791932475744.png",
+          "imageFileType": "image/png",
+          "imageAltText": "Channel Your Inner Rexxar with this Beastly Bundle",
+          "url": "//bnetcmsus-a.akamaihd.net/cms/blog_thumbnail/m5/M5TVE9OQS1M91791932475744.png",
+          "fileType": "image/png",
+          "altText": "Channel Your Inner Rexxar with this Beastly Bundle"
+        },
+        "lastUpdated": "2026-10-19T23:43:00Z",
+        "author": "Blizzard Entertainment",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24310657/channel-your-inner-rexxar-with-this-beastly-bundle",
+        "newsSSOUrl": "https://news.blizzard.com/login?redirect=/en-us/article/24310657/channel-your-inner-rexxar-with-this-beastly-bundle",
+        "newsPath": "/en-us/article/24310657/channel-your-inner-rexxar-with-this-beastly-bundle",
+        "newsId": "24310657",
+        "newsSlug": "channel-your-inner-rexxar-with-this-beastly-bundle",
+        "gradient": {
+          "type": "default"
+        }
+      }
+    },
+    {
+      "contentId": "blt59d30f8264b90691",
+      "contentType": "blogs",
+      "context": {
+        "locale": "en-us"
+      },
+      "properties": {
+        "title": "Hallow’s End Brings Frights, Delights, and Haunting Rewards",
+        "internalTitle": "Hallow’s End Brings Frights, Delights, and Haunting Rewards:24310656",
+        "cxpProduct": {
+          "cxpProductId": "blt2caca37e42f19839",
+          "titleId": 5730135,
+          "title": "World of Warcraft",
+          "internalTitle": "World of Warcraft",
+          "productCode": "WoW",
+          "segment": "world-of-warcraft",
+          "logo": {
+            "imageUrl": "https://blz-contentstack-images.akamaized.net/v3/assets/blt286175c11a6b3f4c/blt637a995645d7e161/5d48a388a58fc57f3dafd9f1/world-of-warcraft.svg",
+            "imageFileType": "image/svg+xml",
+            "imageAltText": "World of Warcraft",
+            "url": "https://blz-contentstack-images.akamaized.net/v3/assets/blt286175c11a6b3f4c/blt637a995645d7e161/5d48a388a58fc57f3dafd9f1/world-of-warcraft.svg",
+            "fileType": "image/svg+xml",
+            "altText": "World of Warcraft",
+            "width": 512,
+            "height": 512
+          },
+          "context": {
+            "locale": "en-us"
+          },
+          "tactProductCode": "wow",
+          "gamePackageId": ""
+        },
+        "cxpProductId": "blt2caca37e42f19839",
+        "summary": "Hallow’s End celebrates the Forsaken's break from the Scourge. Fun and mischief reign as the Innkeepers of Azeroth dole out treats and tricks to those who partake in the festivities. ",
+        "cardActions": [],
+        "category": "Limited-Time Event",
+        "staticAsset": {
+          "imageUrl": "//bnetcmsus-a.akamaihd.net/cms/blog_thumbnail/sj/SJ9M6WYWEIQJ1760483144023.png",
+          "imageFileType": "image/png",
+          "imageAltText": "Hallow’s End Brings Frights, Delights, and Haunting Rewards",
+          "url": "//bnetcmsus-a.akamaihd.net/cms/blog_thumbnail/sj/SJ9M6WYWEIQJ1760483144023.png",
+          "fileType": "image/png",
+          "altText": "Hallow’s End Brings Frights, Delights, and Haunting Rewards"
+        },
+        "lastUpdated": "2026-10-19T17:00:00Z",
+        "author": "Blizzard Entertainment",
+        "newsUrl": "https://news.blizzard.com/en-us/article/24310656/hallows-end-brings-frights-delights-and-haunting-rewards",
+        "newsSSOUrl": "https://news.blizzard.com/login?redirect=/en-us/article/24310656/hallows-end-brings-frights-delights-and-haunting-rewards",
+        "newsPath": "/en-us/article/24310656/hallows-end-brings-frights-delights-and-haunting-rewards",
+        "newsId": "24310656",
+        "newsSlug": "hallows-end-brings-frights-delights-and-haunting-rewards",
+        "banner": {
+          "displayProductIcon": false
+        },
+        "gradient": {
+          "type": "default"
+        }
+      }
+    }
+  ]
+}

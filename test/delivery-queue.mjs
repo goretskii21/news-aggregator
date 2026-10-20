@@ -73,6 +73,6 @@ let feedRequests=0;
 const collected=await collect(async url=>{
  if(String(url).includes('cisa.gov'))return Response.json({vulnerabilities:[]});
  feedRequests++;return new Response(`<rss><channel><item><title>Docker stable release</title><link>https://example.com/release</link><pubDate>Tue, 20 Oct 2026 03:00:00 GMT</pubDate></item></channel></rss>`);
-},now);
+},now,{adapters:[]});
 assert.equal(feedRequests,74);assert.equal(collected.failures.length,0);assert.equal(Object.values(collected.selection.groups).flat().length,1);
 console.log('Queue, retries, restart, concurrency, pacing, Kyiv DST, routing and 74-feed collector checks passed (mock Telegram only).');

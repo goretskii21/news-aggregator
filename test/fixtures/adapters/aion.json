@@ -1,0 +1,46 @@
+{
+  "contentList": [
+    {
+      "id": "6ad7900028c7452635072c01",
+      "title": "[Notice] Maintenance | Oct. 20 (PDT)  / Oct. 21 (CEST)",
+      "summary": "Hello Daevas,We will be performing our scheduled game server maintenance soon.&nbsp;During the maintenance, the game login will be temporarily unavailable.Details:When:October 20, 2026 at 23h30 PDT /",
+      "statusCode": 1,
+      "visibilityCode": 1,
+      "timestamps": {
+        "postDateTime": "2026-10-20 05:00:00.001",
+        "updateDateTime": "2026-10-20 08:26:40.678",
+        "publishedDateTime": null,
+        "postedEpoch": 1792472400,
+        "updatedEpoch": 1792484800,
+        "commentedEpoch": 0,
+        "localOffsetHours": 0,
+        "version": "0.0.3",
+        "postedAt": "2026-10-20T05:00:00.001Z",
+        "updatedAt": "2026-10-20T08:26:40.678Z",
+        "publishedAt": "2026-10-20T05:00:00.001Z",
+        "commentedAt": "1970-01-01T00:00:00.001Z"
+      }
+    },
+    {
+      "id": "6ad2f2c0577e8c01355dffe0",
+      "title": "Account Restrictions | 16 Oct (PDT) / 17 Oct (CEST)",
+      "summary": "Hey, Daevas,&nbsp;To keep AION 2 fair for everyone, we continuously monitor in-game activity and the overall service environment. Following a thorough review, we have restricted a number of accounts f",
+      "statusCode": 1,
+      "visibilityCode": 1,
+      "timestamps": {
+        "postDateTime": "2026-10-17 04:00:00.001",
+        "updateDateTime": "2026-10-17 04:05:27.167",
+        "publishedDateTime": null,
+        "postedEpoch": 1792209600,
+        "updatedEpoch": 1792209927,
+        "commentedEpoch": 0,
+        "localOffsetHours": 0,
+        "version": "0.0.3",
+        "postedAt": "2026-10-17T04:00:00.001Z",
+        "updatedAt": "2026-10-17T04:05:27.167Z",
+        "publishedAt": "2026-10-17T04:00:00.001Z",
+        "commentedAt": "1970-01-01T00:00:00.001Z"
+      }
+    }
+  ]
+}
