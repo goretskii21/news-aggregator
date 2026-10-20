@@ -18,6 +18,7 @@ for(const kind of ['github','blizzard','aion','anthropic']){
 }
 const html='<script type="application/ld+json">{"@type":"NewsArticle","headline":"New Hetzner Cloud service","url":"https://www.hetzner.com/news/service/","datePublished":"2026-10-20T10:00:00Z"}</script>';
 assert.equal(parseAdapter(source('html'),html).length,1);
+assert.equal(parseAdapter(source('html'),html.replace('"url":"https://www.hetzner.com/news/service/",','')).length,0);
 assert.equal(parseAdapter(source('html'),'<a href="/news/ad">Undated marketing</a>').length,0);
 assert.equal(parseAdapter(source('html'),html.replace('https://www.hetzner.com/news/service/','https://evil.example/')).length,0);
 assert.equal(parseAdapter(source('feed'),'<rss><channel><item><title>Gemini API update</title><link>https://developers.googleblog.com/en/gemini/</link><pubDate>Tue, 20 Oct 2026 10:00:00 GMT</pubDate></item><item><title>Android UI styling</title><link>https://developers.googleblog.com/en/android/</link><pubDate>Tue, 20 Oct 2026 10:00:00 GMT</pubDate></item></channel></rss>').length,1);

@@ -17,6 +17,7 @@ function normalized(source,rows){
  const seen=new Set();
  return rows.flatMap(row=>{
   try{
+   if(typeof row.url!=='string'||!row.url.trim())return [];
    const url=new URL(row.url,source.url),title=plain(row.title).slice(0,500),date=Date.parse(row.publishedAt);
    if(url.protocol!=='https:'||!title||!Number.isFinite(date)||seen.has(url.href))return [];
    // Only publisher links, never URLs introduced by unrelated embedded data.
@@ -47,7 +48,7 @@ export function parseAdapter(source,body){
   }
  }else{
   // Prefer publisher-provided structured data; undated links are never news.
-  const visit=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(visit);return;}if(value.headline&&value.datePublished)rows.push({title:value.headline,url:value.url||value.mainEntityOfPage?.['@id'],publishedAt:value.datePublished,excerpt:value.description});Object.values(value).filter(v=>v&&typeof v==='object').forEach(visit);};
+  const visit=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(visit);return;}if(value.headline&&value.datePublished)rows.push({title:value.headline,url:value.url||(typeof value.mainEntityOfPage==='string'?value.mainEntityOfPage:value.mainEntityOfPage?.['@id']),publishedAt:value.datePublished,excerpt:value.description});Object.values(value).filter(v=>v&&typeof v==='object').forEach(visit);};
   for(const m of body.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{visit(JSON.parse(m[1]));}catch{}}
   for(const m of body.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)){
    const date=m[1].match(/<time\b[^>]*datetime=["']([^"']+)/i)?.[1];

@@ -40,7 +40,7 @@ export default {
  async scheduled(event,env){
   const stub=env.NEWS_DELIVERY.get(env.NEWS_DELIVERY.idFromName('private-news-group-v1'));
   const {selection,failures,checks}=await collect(fetch,Date.now(),{cache:env.NEWS_CACHE});
-  console.log(JSON.stringify({failedSources:failures,sourceErrors:checks.filter(c=>c.status!=='ok'),securityReview:selection.securityReview.length}));
+  console.log(JSON.stringify({failedSources:failures,sourceErrors:checks.filter(c=>!['ok','empty-source'].includes(c.status)),securityReview:selection.securityReview.length}));
   const response=await stub.fetch('https://queue.internal/enqueue',{method:'POST',body:JSON.stringify(selection.groups)});
   if(!response.ok)throw new Error('Delivery queue rejected ingestion');
   const queue=await response.json();
