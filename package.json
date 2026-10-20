@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/worker.js && node --check src/production-worker.js && node test/news-selection.mjs && node test/delivery-queue.mjs && node test/production-modes.mjs",
+    "check": "node --check src/worker.js && node --check src/production-worker.js && node test/news-selection.mjs && node test/delivery-queue.mjs && node test/production-modes.mjs && node test/source-diagnostics.mjs",
     "smoke": "node test/worker-smoke.mjs",
     "test:selection": "node test/news-selection.mjs",
     "preview:sources": "node scripts/preview-sources.mjs",
@@ -19,7 +19,8 @@
     "test:delivery-runtime": "node test/delivery-runtime.mjs",
     "dev:topics": "wrangler dev --local --test-scheduled --config wrangler.topics.local.toml",
     "test:production": "node test/production-modes.mjs",
-    "test:topics-live": "node --env-file=.dev.vars test/telegram-topics-live.mjs"
+    "test:topics-live": "node --env-file=.dev.vars test/telegram-topics-live.mjs",
+    "test:sources": "node test/source-diagnostics.mjs"
   },
   "devDependencies": {
     "wrangler": "4.151.1"

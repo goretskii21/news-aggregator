@@ -31,6 +31,14 @@ export function enqueue(state,groups,now){
 export function messageFor(topic,items){
   return `${topics[topic]}\n\n`+items.map((i,n)=>`${n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n');
 }
+export function pendingBatch(state,topic){
+  const items=[];
+  for(const item of state.pending.filter(i=>i.topic===topic)){
+    if(items.length>=(topic==='critical'?1:5))break;
+    if(messageFor(topic,[...items,item]).length<=3900)items.push(item);
+  }
+  return items;
+}
 // Called only inside a serialized Durable Object. Persist before external side effects.
 export async function deliver(state,{now,save,send,enabled}){
   if(!enabled || (state.nextSendAt||0)>now)return;
@@ -39,12 +47,7 @@ export async function deliver(state,{now,save,send,enabled}){
     if(!job){
       const slot=slotFor(topic,now);
       if(!slot || (topic!=='critical' && state.slots[topic+'/'+slot]))continue;
-      let items=[];
-      for(const item of state.pending.filter(i=>i.topic===topic)){
-        if(items.length>= (topic==='critical'?1:5))break;
-        if(messageFor(topic,[...items,item]).length>3900)continue;
-        items.push(item);
-      }
+      const items=pendingBatch(state,topic);
       if(!items.length)continue;
       job={slot,items,attempts:0,nextAt:now};state.jobs[topic]=job;
       await save(state);
