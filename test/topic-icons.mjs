@@ -23,5 +23,11 @@ try{
  const state=emptyState();state.selectionVersion=4;await object.save(state);
  await object.fetch(new Request('https://internal/',{method:'POST',headers:{'X-Topic-Icons':encodeURIComponent(JSON.stringify({microsoft:{id:'123456789',emoji:'🖥️'}}))},body:JSON.stringify({microsoft:[{title:'Entra update',source:'Microsoft',url:'https://example.com/entra'}]})}));
  object=new NewsDelivery({storage},{...object.env,TELEGRAM_DELIVERY_ENABLED:'true'});await object.alarm();
- assert.equal(payload.entities[0].custom_emoji_id,'123456789');assert.equal(payload.entities[0].length,'🖥️'.length);assert.ok(payload.text.startsWith('🖥️ Microsoft'));assert.equal((await object.load()).sent,1);
+ assert.equal(payload.entities[0].custom_emoji_id,'123456789');assert.equal(payload.entities[0].length,'🖥️'.length);assert.ok(payload.text.startsWith('🖥️ Microsoft'));assert.equal((await object.load()).sent,1);assert.equal(payload.entities.find(e=>e.type==='text_link').url,'https://example.com/entra');assert.ok(payload.text.includes('Читать далее...'));assert.ok(!payload.text.includes('https://example.com/entra'));
 }finally{globalThis.fetch=originalFetch;Date.now=originalNow;}
+
+const linked=iconMessage('git','🦊 GitLab / GitHub\n\n1. Новость 👩‍💻 <literal>\nИсточник\nhttps://example.com/a?x=1&y=2\n\n\n2. Next\nSource\nhttps://example.com/b',{git:{id:'123456789',emoji:'👩‍💻'}});
+assert.ok(!linked.text.includes('https://'));assert.ok(linked.text.includes('<literal>'));const links=linked.entities.filter(e=>e.type==='text_link');assert.equal(links.length,2);
+for(const link of links)assert.equal(linked.text.slice(link.offset,link.offset+link.length),'Читать далее...');
+assert.equal(links[0].url,'https://example.com/a?x=1&y=2');assert.equal(linked.entities[0].length,'👩‍💻'.length);assert.ok(linked.text.includes('Читать далее...\n\n\n2.'));
+const plainLinks=iconMessage('ai','🤖 AI\n\nhttps://example.com/plain',{});assert.equal(plainLinks.entities[0].type,'text_link');assert.equal(plainLinks.text.slice(plainLinks.entities[0].offset),'Читать далее...');

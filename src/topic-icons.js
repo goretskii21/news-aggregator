@@ -7,8 +7,20 @@ export function validIcons(value){
 }
 export function iconMessage(topic,text,icons){
  const icon=validIcons(icons)[topic],fallback=topics[topic]?.split(' ')[0];
- if(!icon||!text.startsWith(fallback+' '))return {text};
- return {text:icon.emoji+text.slice(fallback.length),entities:[{type:'custom_emoji',offset:0,length:icon.emoji.length,custom_emoji_id:icon.id}]};
+ const entities=[];
+ if(icon&&text.startsWith(fallback+' ')){
+  text=icon.emoji+text.slice(fallback.length);
+  entities.push({type:'custom_emoji',offset:0,length:icon.emoji.length,custom_emoji_id:icon.id});
+ }
+ // Format at send time, including already prepared retry jobs. Explicit entities
+ // keep headlines literal and use UTF-16 offsets alongside custom emoji.
+ const label='Читать далее...';let delta=0;
+ text=text.replace(/^https?:\/\/[^\r\n]+$/gm,(url,offset)=>{
+  try{const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol))return url;}catch{return url;}
+  entities.push({type:'text_link',offset:offset+delta,length:label.length,url});
+  delta+=label.length-url.length;return label;
+ });
+ return {text,...(entities.length?{entities}:{})};
 }
 // This bot has no webhook or second update consumer. Store only topic icons and
 // the cursor; private messages and unrelated updates are never saved or logged.
