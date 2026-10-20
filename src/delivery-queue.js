@@ -28,7 +28,7 @@ export function enqueue(state,groups,now){
   }
 }
 export function messageFor(topic,items,offset=0){
-  return `${topics[topic]}\n\n`+items.map((i,n)=>`${offset+n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n');
+  return `${topics[topic]}\n\n`+items.map((i,n)=>`${offset+n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n\n');
 }
 export function messageParts(topic,items){
   const groups=[];let current=[];
