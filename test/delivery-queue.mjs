@@ -12,7 +12,7 @@ assert.ok(slotFor('ai',now));assert.equal(slotFor('git',now),null);
 assert.ok(slotFor('git',now+600000));assert.equal(slotFor('ai',now+600000),null);
 assert.ok(slotFor('ai',at('2026-12-01T07:00:00Z'))); // winter UTC offset.
 assert.ok(slotFor('games',at('2026-10-20T16:10:00Z')));
-enqueue(state,{ai:Array.from({length:7},(_,i)=>item(i))},now);
+enqueue(state,{ai:Array.from({length:7},(_,i)=>({...item(i),source:'Source '+i%3}))},now);
 enqueue(state,{ai:[item(0)]},now);assert.equal(state.pending.length,7);
 await run(now,{enabled:false});assert.equal(calls.length,0);
 await run();assert.equal(calls.length,1);assert.equal(state.pending.length,2);

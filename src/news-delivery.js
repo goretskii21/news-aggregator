@@ -1,4 +1,5 @@
 import { emptyState, enqueue, deliver, routes, messageFor, pendingBatch } from './delivery-queue.js';
+import {reviewPending} from './queue-review.js';
 export class NewsDelivery {
   constructor(ctx,env){this.ctx=ctx;this.env=env;this.tail=Promise.resolve();}
   serial(fn){const run=this.tail.then(fn);this.tail=run.catch(()=>{});return run;}
@@ -21,6 +22,7 @@ export class NewsDelivery {
   }
   async fetch(request){return this.serial(async()=>{
     const state=await this.load();
+    reviewPending(state);
     enqueue(state,await request.json(),Date.now());
     await this.save(state);
     await this.process(state);
@@ -29,7 +31,7 @@ export class NewsDelivery {
       const items=state.jobs[topic]?.items||pendingBatch(state,topic);
       return [topic,items.length?messageFor(topic,items):null];
     }));
-    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,byTopic,preview});
+    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,filtered:state.filtered||0,reclassified:state.reclassified||0,byTopic,preview});
   });}
   async alarm(){return this.serial(async()=>this.process(await this.load()));}
   async process(state){

@@ -672,7 +672,8 @@ export const sources = [
     "homepage": "https://www.comss.ru/rss.php",
     "url": "https://www.comss.ru/rss.php",
     "categories": [
-      "microsoft"
+      "microsoft",
+      "linux"
     ],
     "role": "editorial"
   },

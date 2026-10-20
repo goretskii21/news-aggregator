@@ -24,7 +24,7 @@ export function enqueue(state,groups,now){
       if(key.length>700)throw new Error('Article URL exceeds supported message length');
       if(state.seen[key] || state.pending.some(x=>x.key===key))continue;
       if(state.pending.length>=2000)throw new Error('Queue capacity reached; ingestion must retry');
-      state.pending.push({key,topic,title:String(item.title).slice(0,230),url:key,source:String(item.source).slice(0,80),addedAt:now});
+      state.pending.push({key,topic,title:String(item.title).slice(0,230),url:key,source:String(item.source).slice(0,80),publishedAt:item.publishedAt,addedAt:now});
     }
   }
 }
@@ -32,10 +32,11 @@ export function messageFor(topic,items){
   return `${topics[topic]}\n\n`+items.map((i,n)=>`${n+1}. ${i.title}\n${i.source}\n${i.url}`).join('\n\n');
 }
 export function pendingBatch(state,topic){
-  const items=[];
+  const items=[],sourceCounts=new Map();
   for(const item of state.pending.filter(i=>i.topic===topic)){
     if(items.length>=(topic==='critical'?1:5))break;
-    if(messageFor(topic,[...items,item]).length<=3900)items.push(item);
+    if((sourceCounts.get(item.source)||0)>=2)continue;
+    if(messageFor(topic,[...items,item]).length<=3900){items.push(item);sourceCounts.set(item.source,(sourceCounts.get(item.source)||0)+1);}
   }
   return items;
 }

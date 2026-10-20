@@ -1,4 +1,4 @@
-// Offline preview rules. Not wired into the production scheduled handler yet.
+// Shared source selection for production collection and queue review.
 export const topics = {
   critical: '🚨 Critical / Security', ai: '🤖 AI', git: '🦊 GitLab / GitHub',
   containers: '🐳 Docker / Kubernetes', cloud: '☁️ Cloud', microsoft: '🪟 Microsoft',
@@ -10,7 +10,7 @@ const rules = {
   containers: /\b(?:Docker|Swarm|Kubernetes|K8s|containerd|runc|Helm|BuildKit|Compose|CNCF)\b|контейнер/iu,
   cloud: /\b(?:AWS|Amazon Web Services|Cloudflare|Hetzner|EC2|S3|Route 53)\b/iu,
   microsoft: /\b(?:Microsoft|Entra|Azure|M365|Microsoft 365|Office 365|Exchange|Intune|Windows)\b/iu,
-  linux: /\b(?:Linux|Ubuntu|Ansible|systemd|OpenWrt|BIND|DNS|DHCP|TCP|OpenSSH|kernel|networking)\b|линукс|убунту|ядр.{0,8}Linux|сетев/iu,
+  linux: /\b(?:Linux|Ubuntu|Ansible|systemd|OpenWrt|BIND|DNS|DHCP|TCP|OpenSSH|kernel|networking|CRIU|KDE|Plasma|GNOME|Wayland|Debian|Fedora)\b|линукс|убунту|ядр.{0,8}Linux|сетев/iu,
   apple: /\b(?:Apple|macOS|iOS|iPadOS|MacBook|iPhone|iPad|Apple Silicon)\b/iu,
   games: /\b(?:Diablo|AION|Warcraft|WoW|Steam|Xbox|PlayStation|Nintendo|game|gaming|GTA)\b|игр|гейм|диабло|варкрафт/iu
 };
@@ -41,7 +41,9 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     if (date < now - hours * 3600000) { reject('outside-window'); continue; }
     let url; try { url = canonicalUrl(item.url); } catch { reject('invalid-url'); continue; }
     // Bare version titles are common in Atom release feeds; attach the project name.
-    const title = /^v?\d[\w.\-+ ]*$/i.test(item.title) ? `${item.source}: ${item.title}` : item.title;
+    let title = /^v?\d[\w.\-+ ]*$/i.test(item.title) ? `${item.source}: ${item.title}` : item.title;
+    const releaseRepo=new URL(url).hostname==='github.com'?new URL(url).pathname.match(/^\/[^/]+\/([^/]+)\/releases\/tag\//)?.[1]:null;
+    if(releaseRepo && /^(?:v?\d[\w.\-+ ]*|Release\s+\d[\w.\-+ ]*)$/i.test(item.title))title=`${releaseRepo}: ${item.title}`;
     const titleKey = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     if (seenUrls.has(url) || seenTitles.has(titleKey)) { reject('duplicate-url-or-title'); continue; }
     const text = `${title} ${item.excerpt}`;
@@ -50,7 +52,7 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     if (/Status$/.test(item.source) && /maintenance|scheduled|планов/i.test(text) && /no.{0,30}(?:impact|expect)|do not expect|without.{0,20}impact|не ожида/i.test(text)) { reject('maintenance-without-impact'); continue; }
     if (/Status$/.test(item.source) && /maintenance|scheduled|планов/i.test(title)) { reject('planned-maintenance-review'); continue; }
     if (/\/(?:hardware|tech-and-hardware|deals|movies|tv)\//i.test(url) && source?.categories.includes('games')) { reject('games-hardware-or-deals'); continue; }
-    if (source?.categories.length===1 && source.categories[0]==='apple' && !/macOS|iOS|iPadOS|MacBook|iPhone|iPad|Apple Silicon|Mac mini|Mac Studio|Mac Pro|\bM\d\b/iu.test(title)) { reject('outside-apple-focus'); continue; }
+    if (source?.categories.length===1 && source.categories[0]==='apple' && !/macOS|iOS|iPadOS|MacBook|Apple Silicon|Mac mini|Mac Studio|Mac Pro|Apple Intelligence|Xcode|Safari|WebKit|\bM\d\b/iu.test(title)) { reject('outside-apple-focus'); continue; }
     if (source?.categories.includes('apple') && /accessories|power banks?|chargers?|MagSafe Monday|delivery dates|orders to two|fonts/iu.test(title)) { reject('apple-shopping-or-tips'); continue; }
     if (/Amazon Connect/i.test(title)) { reject('outside-cloud-infrastructure-focus'); continue; }
     if (source?.name==='Comss' && /ViVeTool|контекстное меню|обои|wallpaper|как включить/iu.test(title)) { reject('consumer-tweak'); continue; }
@@ -83,7 +85,7 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     const authority=Number(b.role==='official')-Number(a.role==='official');
     if(authority)return authority;
     if(topic==='games'){
-      const fav=x=>/diablo|aion|warcraft|\bwow\b|диабло|варкрафт/iu.test(x.title+' '+x.excerpt);
+      const fav=x=>!/(?:warcraft|wow|варкрафт).{0,8}forever/iu.test(x.title) && /diablo|aion|warcraft|\bwow\b|диабло|варкрафт/iu.test(x.title+' '+x.excerpt);
       const delta=Number(fav(b))-Number(fav(a));if(delta)return delta;
     }
     return Date.parse(b.publishedAt)-Date.parse(a.publishedAt);
