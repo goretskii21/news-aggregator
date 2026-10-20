@@ -10,7 +10,10 @@ Cloudflare разворачивает `main` через Git integration. `wrangl
 Включать отправку следует отдельно, после проверки источников и очереди из Cloudflare.
 Секреты старого канала сохраняются; для новой группы используется `TG_NEWS_BOT`.
 
-Проверки `npm run check` и `npm run smoke` входят в существующую Cloudflare-сборку.
+Cloudflare автоматически устанавливает зависимости через `pnpm install --frozen-lockfile`.
+Build command: `pnpm run check && pnpm run smoke`.
+Deploy command: `pnpm exec wrangler deploy`. Не добавлять повторный `npm install`: он
+конфликтует с уже созданным pnpm node_modules (ошибка npm edgesOut).
 Node.js 22+; версия Wrangler закреплена. Папки `outputs/`, `.wrangler/` и `.dev.vars`
 не включаются в Git. Отчёты `npm run preview:sources` создаются в `outputs/`;
 другой каталог задаётся переменной `NEWS_REPORT_DIR`.
