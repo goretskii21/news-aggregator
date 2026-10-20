@@ -1,7 +1,12 @@
 name = "news-aggregator"
-main = "src/worker.js"
+main = "src/production-worker.js"
 compatibility_date = "2026-06-30"
 workers_dev = false
+
+[vars]
+NEWS_PIPELINE_MODE = "shadow"
+TELEGRAM_DELIVERY_ENABLED = "false"
+TELEGRAM_GROUP_CHAT_ID = "-1004292521513"
 
 [triggers]
 crons = ["*/10 * * * *"]
@@ -9,3 +14,15 @@ crons = ["*/10 * * * *"]
 [[kv_namespaces]]
 binding = "NEWS_CACHE"
 id = "86aef1c1040a4043b8d733ee21c593b7"
+
+[[durable_objects.bindings]]
+name = "NEWS_DELIVERY"
+class_name = "NewsDelivery"
+
+[[migrations]]
+tag = "topics-v1"
+new_sqlite_classes = ["NewsDelivery"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1

@@ -1,0 +1,20 @@
+# Isolated local candidate. Production wrangler.toml is unchanged.
+name = "news-aggregator-topics-local"
+main = "src/topics-worker.js"
+compatibility_date = "2026-06-30"
+workers_dev = false
+
+[vars]
+TELEGRAM_DELIVERY_ENABLED = "false"
+
+[[durable_objects.bindings]]
+name = "NEWS_DELIVERY"
+class_name = "NewsDelivery"
+
+[[migrations]]
+tag = "topics-v1"
+new_sqlite_classes = ["NewsDelivery"]
+
+[dev]
+ip = "127.0.0.1"
+port = 8788

@@ -1,0 +1,12 @@
+name = "news-aggregator-local"
+main = "scripts/local-worker.js"
+compatibility_date = "2026-06-30"
+workers_dev = false
+
+[[kv_namespaces]]
+binding = "NEWS_CACHE"
+id = "local-news-cache"
+
+[dev]
+ip = "127.0.0.1"
+port = 8787

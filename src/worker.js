@@ -610,6 +610,8 @@ function uniqueByUrl(items) {
   });
 }
 
+export { parseFeed, readResponseBody, looksLikeFeed };
+
 function hashString(value) {
   let hash = 5381;
   for (let index = 0; index < value.length; index += 1) {
