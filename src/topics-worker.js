@@ -2,6 +2,7 @@ import { parseFeed,readResponseBody,looksLikeFeed } from './worker.js';
 import { sources } from './source-catalog.js';
 import { selectNews } from './news-selection.js';
 import {adapterSources,loadAdapter} from './source-adapters.js';
+import {syncTopicIcons} from './topic-icons.js';
 export { NewsDelivery } from './news-delivery.js';
 export async function loadCatalogSource(source,fetcher=fetch){
  const started=Date.now();let httpStatus;
@@ -45,15 +46,16 @@ export default {
  async fetch(){return new Response('Not Found',{status:404});},
  async scheduled(event,env){
   const stub=env.NEWS_DELIVERY.get(env.NEWS_DELIVERY.idFromName('private-news-group-v1'));
+  const iconSync=await syncTopicIcons(env);
   const {selection,failures,checks}=await collect(fetch,Date.now(),{cache:env.NEWS_CACHE});
   const rejectedByReason=selection.rejected.reduce((counts,item)=>{counts[item.reason]=(counts[item.reason]||0)+1;return counts;},{});
   console.log(JSON.stringify({failedSources:failures,sourceErrors:checks.filter(c=>!['ok','empty-source'].includes(c.status)),securityReview:selection.securityReview.length}));
-  const response=await stub.fetch('https://queue.internal/enqueue',{method:'POST',body:JSON.stringify(selection.groups)});
+  const response=await stub.fetch('https://queue.internal/enqueue',{method:'POST',headers:iconSync.icons?{'X-Topic-Icons':encodeURIComponent(JSON.stringify(iconSync.icons))}:{},body:JSON.stringify(selection.groups)});
   if(!response.ok)throw new Error('Delivery queue rejected ingestion');
   const queue=await response.json();
   const {preview,...stats}=queue;
   console.log(JSON.stringify({pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...stats}));
   // Private diagnostics in the existing KV; no HTTP endpoint, credentials or article bodies.
-  if(env.NEWS_CACHE)await env.NEWS_CACHE.put('topics:diagnostics',JSON.stringify({checkedAt:new Date().toISOString(),pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...queue,checks,rejectedByReason,securityReview:selection.securityReview.length}));
+  if(env.NEWS_CACHE)await env.NEWS_CACHE.put('topics:diagnostics',JSON.stringify({checkedAt:new Date().toISOString(),pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...queue,checks,rejectedByReason,topicIcons:{status:iconSync.status,count:Object.keys(iconSync.icons||{}).length},securityReview:selection.securityReview.length}));
  }
 };

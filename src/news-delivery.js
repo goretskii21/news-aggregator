@@ -1,5 +1,6 @@
 import { emptyState, enqueue, deliver, routes, messageParts, pendingBatch, slotFor } from './delivery-queue.js';
 import {reviewPending} from './queue-review.js';
+import {validIcons,iconMessage} from './topic-icons.js';
 export class NewsDelivery {
   constructor(ctx,env){this.ctx=ctx;this.env=env;this.tail=Promise.resolve();}
   serial(fn){const run=this.tail.then(fn);this.tail=run.catch(()=>{});return run;}
@@ -22,6 +23,8 @@ export class NewsDelivery {
   }
   async fetch(request){return this.serial(async()=>{
     const state=await this.load();
+    const icons=request.headers.get('X-Topic-Icons');
+    if(icons!==null)state.icons=validIcons(JSON.parse(decodeURIComponent(icons)));
     reviewPending(state);
     enqueue(state,await request.json(),Date.now());
     await this.save(state);
@@ -43,7 +46,7 @@ export class NewsDelivery {
       if(!this.env.TG_NEWS_BOT || !/^-100\d+$/.test(this.env.TELEGRAM_GROUP_CHAT_ID||''))return {ok:false,code:'configuration'};
       const response=await fetch(`https://api.telegram.org/bot${this.env.TG_NEWS_BOT}/sendMessage`,{
         method:'POST',headers:{'content-type':'application/json'},signal:AbortSignal.timeout(8000),
-        body:JSON.stringify({chat_id:this.env.TELEGRAM_GROUP_CHAT_ID,message_thread_id:routes[topic],text,disable_notification:silent,link_preview_options:{is_disabled:true}})
+        body:JSON.stringify({chat_id:this.env.TELEGRAM_GROUP_CHAT_ID,message_thread_id:routes[topic],...iconMessage(topic,text,state.icons),disable_notification:silent,link_preview_options:{is_disabled:true}})
       });
       const body=await response.json();
       return {ok:response.ok && body.ok===true && Number.isInteger(body.result?.message_id),code:body.error_code||response.status,retryAfter:body.parameters?.retry_after};
