@@ -3,7 +3,7 @@ import {sources} from './source-catalog.js';
 import {adapterSources} from './source-adapters.js';
 // Reclassify already queued, unsent material when editorial rules change.
 export function reviewPending(state,now=Date.now()){
- if(state.selectionVersion===3)return;
+ if(state.selectionVersion===4)return;
  const protectedKeys=new Set(Object.values(state.jobs).flatMap(j=>j.items.map(i=>i.key)));
  const keep=state.pending.filter(i=>i.topic==='critical'||protectedKeys.has(i.key));
  const candidates=state.pending.filter(i=>i.topic!=='critical'&&!protectedKeys.has(i.key));
@@ -12,5 +12,5 @@ export function reviewPending(state,now=Date.now()){
  const reviewed=Object.values(result.groups).flat().map(i=>({...byKey.get(i.key),topic:i.topic,title:i.title}));
  state.filtered=(state.filtered||0)+candidates.length-reviewed.length;
  state.reclassified=(state.reclassified||0)+reviewed.filter(i=>i.topic!==byKey.get(i.key).topic).length;
- state.pending=[...keep,...reviewed];state.selectionVersion=3;
+ state.pending=[...keep,...reviewed];state.selectionVersion=4;
 }

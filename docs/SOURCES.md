@@ -249,3 +249,5 @@ macOS, iOS, iPadOS, Mac/Apple Silicon и инструменты Apple. Отсе�
 **20.10.2026 16:51:15 по Киеву**, штатный production cron: Anthropic — OK, 14; Google Developers AI — OK, 8; Blizzard — OK, 15; AION 2 — OK, 10. GitHub API всех четырёх репозиториев — 403; Hetzner — 429. Это подтвердило отличие доступности от Windows.
 
 **20.10.2026 16:54:43 по Киеву**, изолированный Cloudflare remote preview без очереди и Telegram: резервный HTML GitHub — Moby/containerd/runc по 10 записей, Ansible — корректный пустой список; HTTP 200. Этот путь включён при ошибках API 403/429. Hetzner повторно 429; его HTML-парсер проверен тестовыми данными, но сбор реальной страницы пока не подтверждён. Актуальный production-статус и выбранный `transport` появятся в `topics:diagnostics` следующего cron.
+
+Правила фильтрации, включая исключение российских внутренних и корпоративных новостей при сохранении русскоязычных источников: [FILTERING.md](FILTERING.md).

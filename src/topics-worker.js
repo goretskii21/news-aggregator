@@ -40,6 +40,7 @@ export default {
  async scheduled(event,env){
   const stub=env.NEWS_DELIVERY.get(env.NEWS_DELIVERY.idFromName('private-news-group-v1'));
   const {selection,failures,checks}=await collect(fetch,Date.now(),{cache:env.NEWS_CACHE});
+  const rejectedByReason=selection.rejected.reduce((counts,item)=>{counts[item.reason]=(counts[item.reason]||0)+1;return counts;},{});
   console.log(JSON.stringify({failedSources:failures,sourceErrors:checks.filter(c=>!['ok','empty-source'].includes(c.status)),securityReview:selection.securityReview.length}));
   const response=await stub.fetch('https://queue.internal/enqueue',{method:'POST',body:JSON.stringify(selection.groups)});
   if(!response.ok)throw new Error('Delivery queue rejected ingestion');
@@ -47,6 +48,6 @@ export default {
   const {preview,...stats}=queue;
   console.log(JSON.stringify({pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...stats}));
   // Private diagnostics in the existing KV; no HTTP endpoint, credentials or article bodies.
-  if(env.NEWS_CACHE)await env.NEWS_CACHE.put('topics:diagnostics',JSON.stringify({checkedAt:new Date().toISOString(),pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...queue,checks,securityReview:selection.securityReview.length}));
+  if(env.NEWS_CACHE)await env.NEWS_CACHE.put('topics:diagnostics',JSON.stringify({checkedAt:new Date().toISOString(),pipeline:'topics',deliveryEnabled:env.TELEGRAM_DELIVERY_ENABLED==='true',...queue,checks,rejectedByReason,securityReview:selection.securityReview.length}));
  }
 };

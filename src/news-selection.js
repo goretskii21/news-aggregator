@@ -1,4 +1,5 @@
 // Shared source selection for production collection and queue review.
+import {editorialExclusion} from './editorial-policy.js';
 export const topics = {
   critical: '🚨 Critical / Security', ai: '🤖 AI', git: '🦊 GitLab / GitHub',
   containers: '🐳 Docker / Kubernetes', cloud: '☁️ Cloud', microsoft: '🪟 Microsoft',
@@ -47,6 +48,8 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     const titleKey = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
     if (seenUrls.has(url) || seenTitles.has(titleKey)) { reject('duplicate-url-or-title'); continue; }
     const text = `${title} ${item.excerpt}`;
+    const editorialReason=editorialExclusion({...item,title});
+    if(editorialReason){reject(editorialReason);continue;}
     if (noise.test(title) || /конференц|conference|styling outfits|where to find|what.s coming|chief discusses|bug fixes and reliability improvements/iu.test(title)) { reject('noise'); continue; }
     if ((preview.test(title) || /может выйти|готовится выпустить/iu.test(title)) && !item.knownExploited) { reject('prerelease-or-rumor'); continue; }
     if (/Status$/.test(item.source) && /maintenance|scheduled|планов/i.test(text) && /no.{0,30}(?:impact|expect)|do not expect|without.{0,20}impact|не ожида/i.test(text)) { reject('maintenance-without-impact'); continue; }
