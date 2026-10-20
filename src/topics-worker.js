@@ -6,7 +6,13 @@ export { NewsDelivery } from './news-delivery.js';
 export async function loadCatalogSource(source,fetcher=fetch){
  const started=Date.now();let httpStatus;
  try{
-  const response=await fetcher(source.url,{signal:AbortSignal.timeout(15000)});httpStatus=response.status;
+  const hostname=new URL(source.url).hostname;
+  // Canonical's feeds time out from Workers without explicit request headers.
+  const headers=['ubuntu.com','canonical.com'].includes(hostname)?{
+   'User-Agent':'news-aggregator/1.0',
+   'Accept':'application/rss+xml, application/json, text/xml;q=0.9, */*;q=0.8'
+  }:undefined;
+  const response=await fetcher(source.url,{signal:AbortSignal.timeout(15000),...(headers?{headers}:{})});httpStatus=response.status;
   if(!response.ok)return {items:[],check:{name:source.name,status:'http-error',httpStatus,durationMs:Date.now()-started}};
   const body=await readResponseBody(response);
   if(!looksLikeFeed(body))return {items:[],check:{name:source.name,status:'not-feed',httpStatus,durationMs:Date.now()-started}};
