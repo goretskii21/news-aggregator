@@ -31,18 +31,18 @@ export class NewsDelivery {
       const items=state.jobs[topic]?.items||pendingBatch(state,topic);
       return [topic,items.length?messageFor(topic,items):null];
     }));
-    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,filtered:state.filtered||0,reclassified:state.reclassified||0,byTopic,preview});
+    return Response.json({pending:state.pending.length,sent:state.sent,expired:state.expired||0,filtered:state.filtered||0,reclassified:state.reclassified||0,schedule:{timezone:'Europe/Kyiv',hours:[0,6,12,18],silentHour:0},byTopic,preview});
   });}
   async alarm(){return this.serial(async()=>this.process(await this.load()));}
   async process(state){
     const enabled=this.env.TELEGRAM_DELIVERY_ENABLED==='true';
     // Watchdog survives eviction/crash while delivering. Disabled mode never calls Telegram.
     if(enabled && state.pending.length)await this.ctx.storage.setAlarm(Date.now()+60000);
-    await deliver(state,{now:Date.now(),enabled,save:s=>this.save(s),send:async(topic,text)=>{
+    await deliver(state,{now:Date.now(),enabled,save:s=>this.save(s),send:async(topic,text,{silent=false}={})=>{
       if(!this.env.TG_NEWS_BOT || !/^-100\d+$/.test(this.env.TELEGRAM_GROUP_CHAT_ID||''))return {ok:false,code:'configuration'};
       const response=await fetch(`https://api.telegram.org/bot${this.env.TG_NEWS_BOT}/sendMessage`,{
         method:'POST',headers:{'content-type':'application/json'},signal:AbortSignal.timeout(8000),
-        body:JSON.stringify({chat_id:this.env.TELEGRAM_GROUP_CHAT_ID,message_thread_id:routes[topic],text,link_preview_options:{is_disabled:true}})
+        body:JSON.stringify({chat_id:this.env.TELEGRAM_GROUP_CHAT_ID,message_thread_id:routes[topic],text,disable_notification:silent,link_preview_options:{is_disabled:true}})
       });
       const body=await response.json();
       return {ok:response.ok && body.ok===true && Number.isInteger(body.result?.message_id),code:body.error_code||response.status,retryAfter:body.parameters?.retry_after};

@@ -1,14 +1,13 @@
 import { topics, canonicalUrl } from './news-selection.js';
 export const routes = {critical:3,ai:5,git:7,containers:9,cloud:11,microsoft:13,linux:15,apple:17,games:19};
-export const hours = {ai:[9,18],git:[9,18],containers:[9,18],cloud:[9,18],microsoft:[9,18],linux:[18],apple:[18],games:[19]};
-const minutes={ai:0,git:10,containers:20,cloud:30,microsoft:40,linux:50,apple:0,games:10};
-hours.apple=[19];
+export const hours = Object.fromEntries(Object.keys(routes).filter(t=>t!=='critical').map(t=>[t,[0,6,12,18]]));
 export function slotFor(topic, now) {
   if(topic==='critical')return 'immediate';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(now)).map(p=>[p.type,p.value]));
-  // A missed run can catch up during the scheduled hour, never on every poll all day.
-  return hours[topic]?.includes(Number(parts.hour)) && Math.floor(Number(parts.minute)/10)*10===minutes[topic] ? `${parts.year}-${parts.month}-${parts.day}/${parts.hour}:${minutes[topic]}` : null;
+  // Allow the eight topic messages to drain sequentially, with limited catch-up.
+  return hours[topic]?.includes(Number(parts.hour)) && Number(parts.minute)<30 ? `${parts.year}-${parts.month}-${parts.day}/${parts.hour}:00` : null;
 }
+export const silentDigest=(topic,slot)=>topic!=='critical' && slot.endsWith('/00:00');
 export function emptyState(){return {pending:[],seen:{},slots:{},jobs:{},sent:0};}
 export function enqueue(state,groups,now){
   const inFlight=new Set(Object.values(state.jobs).flatMap(j=>j.items.map(i=>i.key)));
@@ -57,7 +56,7 @@ export async function deliver(state,{now,save,send,enabled}){
     // Persist a recovery delay before the request: a crash must not cause an immediate storm.
     job.nextAt=now+60000;state.nextSendAt=now+10000;await save(state);
     let result;
-    try{result=await send(topic,messageFor(topic,job.items));}catch{result={ok:false};}
+    try{result=await send(topic,messageFor(topic,job.items),{silent:silentDigest(topic,job.slot)});}catch{result={ok:false};}
     if(result.ok){
       const keys=new Set(job.items.map(i=>i.key));
       state.pending=state.pending.filter(i=>!keys.has(i.key));

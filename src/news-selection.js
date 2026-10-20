@@ -15,7 +15,7 @@ const rules = {
   games: /\b(?:Diablo|AION|Warcraft|WoW|Steam|Xbox|PlayStation|Nintendo|game|gaming|GTA)\b|игр|гейм|диабло|варкрафт/iu
 };
 const noise = /\b(?:coupon|discount|deals?|giveaway|sponsored|webinar|register now|customer story|cosplay|cheats?|podcast|verdict|lawsuit|lifetime subscription|IPO|investors?|preorders?)\b|[$£€]\s*\d|скидк|промокод|косплей|чит[ыа]|розыгрыш|вебинар|инвестор|привлечь.*млрд|приобрела.*актив/iu;
-const preview = /\b(?:alpha|beta|release candidate|RC\d*|pre-release|preview|linux-next|next-\d+|may soon|reportedly|rumou?rs?)\b|бета|слух|утечк/iu;
+const preview = /\b(?:alpha|beta|release candidates?|RC\d*s?|pre-release|preview|linux-next|next-\d+|may soon|reportedly|rumou?rs?)\b|бета|слух|утечк/iu;
 const stack = /\b(?:Docker|Swarm|Moby|containerd|runc|Ansible|ansible-core|Ubuntu|Linux kernel)\b/iu;
 const security = /CVE-\d{4}-\d+|\b(?:vulnerabilit|security|exploit|RCE|privilege escalation|container escape)\w*|уязвим|эксплуатац|повышени.{0,10}привилег|выход.{0,12}контейнер/iu;
 const cves = s => [...new Set(s.match(/CVE-\d{4}-\d+/gi) || [])].map(s=>s.toUpperCase()).sort();
@@ -52,7 +52,6 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     if (/Status$/.test(item.source) && /maintenance|scheduled|планов/i.test(text) && /no.{0,30}(?:impact|expect)|do not expect|without.{0,20}impact|не ожида/i.test(text)) { reject('maintenance-without-impact'); continue; }
     if (/Status$/.test(item.source) && /maintenance|scheduled|планов/i.test(title)) { reject('planned-maintenance-review'); continue; }
     if (/\/(?:hardware|tech-and-hardware|deals|movies|tv)\//i.test(url) && source?.categories.includes('games')) { reject('games-hardware-or-deals'); continue; }
-    if (source?.categories.length===1 && source.categories[0]==='apple' && !/macOS|iOS|iPadOS|MacBook|Apple Silicon|Mac mini|Mac Studio|Mac Pro|Apple Intelligence|Xcode|Safari|WebKit|\bM\d\b/iu.test(title)) { reject('outside-apple-focus'); continue; }
     if (source?.categories.includes('apple') && /accessories|power banks?|chargers?|MagSafe Monday|delivery dates|orders to two|fonts/iu.test(title)) { reject('apple-shopping-or-tips'); continue; }
     if (/Amazon Connect/i.test(title)) { reject('outside-cloud-infrastructure-focus'); continue; }
     if (source?.name==='Comss' && /ViVeTool|контекстное меню|обои|wallpaper|как включить/iu.test(title)) { reject('consumer-tweak'); continue; }
@@ -72,6 +71,7 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     // Product-specific sources can contain titles without the product name.
     const topic = hits[0] || (ordinary.length===1 ? ordinary[0] : null);
     if (!topic) { reject('no-topic-match'); continue; }
+    if (topic==='apple' && !/macOS|iOS|iPadOS|MacBook|Apple Silicon|Mac mini|Mac Studio|Mac Pro|Apple Intelligence|Xcode|Safari|WebKit|\bM\d\b/iu.test(title)) { reject('outside-apple-focus'); continue; }
     if (topic==='ai' && /хакер.*ИИ|army.{0,30}AI|AI.{0,30}army/iu.test(title)) { reject('off-topic-ai-mention'); continue; }
     // Security-only feeds should not flood regular digests with every package notice.
     if (source?.name==='Ubuntu Security Notices' || source?.name==='Docker Security') { reject('security-review-only'); continue; }
