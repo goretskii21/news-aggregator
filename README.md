@@ -1,13 +1,15 @@
 # News Aggregator
 
-## Production: проверка очереди без отправки в новую группу
+## Production: рассылка в приватную группу по темам
 
 Cloudflare разворачивает `main` через Git integration. `wrangler.toml` использует
 `src/production-worker.js`: в режиме `NEWS_PIPELINE_MODE=topics` старый канал больше не вызывается,
 а новые источники наполняют SQLite Durable Object
-`NewsDelivery`. `TELEGRAM_DELIVERY_ENABLED=false` блокирует отправку в новую группу.
+`NewsDelivery`. В production `TELEGRAM_DELIVERY_ENABLED=true` включает отправку в новую группу;
+для паузы установите `false` и выполните обычный Git-деплой.
 Режим `legacy` выполняет только старую рассылку; `topics` — только новую очередь.
-Включать отправку следует отдельно, после проверки источников и очереди из Cloudflare.
+Рассылка включена после локального теста отправки и проверки рабочей очереди из Cloudflare.
+Обычные выпуски: 06:00, 12:00, 18:00, 00:00 Europe/Kyiv; ночной без звука.
 Секреты старого канала сохраняются; для новой группы используется `TG_NEWS_BOT`.
 
 Cloudflare автоматически устанавливает зависимости через `pnpm install --frozen-lockfile`.

@@ -5,7 +5,7 @@ workers_dev = false
 
 [vars]
 NEWS_PIPELINE_MODE = "topics"
-TELEGRAM_DELIVERY_ENABLED = "false"
+TELEGRAM_DELIVERY_ENABLED = "true"
 TELEGRAM_GROUP_CHAT_ID = "-1004292521513"
 
 [triggers]
