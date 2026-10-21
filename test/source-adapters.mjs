@@ -65,3 +65,5 @@ assert.equal(integrated.checks.length,84);assert.equal(integrated.failures.lengt
 assert.ok(integrated.selection.groups.games.some(i=>i.source==='AION 2 official announcements'));
 await collect(integrationFetch,Date.parse('2026-10-20T13:10:00Z'),{cache});assert.equal(adapterRequests,9);
 console.log('Adapters: public payloads, dates/links, withdrawn advisories, conservative Critical, schema errors, hourly cache and Retry-After passed.');
+
+const listing=await readFile(new URL('fixtures/adapters/anthropic-listing.html',import.meta.url),'utf8');const currentAnthropic=parseAdapter(source('anthropic'),listing);assert.equal(currentAnthropic.length,3);assert.ok(currentAnthropic.every(i=>i.url.startsWith('https://www.anthropic.com/news/')&&Number.isFinite(Date.parse(i.publishedAt))));assert.equal(parseAdapter(source('anthropic'),listing.replace(/<time[^>]*>[\s\S]*?<\/time>/g,'')).length,0);assert.equal(parseAdapter(source('anthropic'),listing+listing).length,3);

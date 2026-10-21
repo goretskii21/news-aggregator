@@ -41,6 +41,13 @@ export function parseAdapter(source,body){
   const data=JSON.parse(body);if(!Array.isArray(data.contentList))throw new Error('Invalid AION list');
   rows=data.contentList.filter(i=>i.statusCode===1&&i.visibilityCode===1).map(i=>({title:`AION 2: ${i.title}`,url:`https://aion2.plaync.com/en-us/board/notice/view?articleId=${encodeURIComponent(i.id)}`,publishedAt:i.timestamps?.publishedAt||i.timestamps?.postedAt,excerpt:i.summary}));
  }else if(source.kind==='anthropic'){
+  // Current newsroom: a dated listing row wraps separate title/description links.
+  // Match its stable data attribute rather than generated CSS module names.
+  for(const match of body.matchAll(/<li\b[^>]*data-listing-row="[^"]+"[^>]*>([\s\S]*?)<\/li>/gi)){
+   const date=match[1].match(/<time\b[^>]*>([\s\S]*?)<\/time>/i)?.[1];
+   const link=match[1].match(/<a\b[^>]*href="([^"]+)"[^>]*>[\s\S]*?<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i);
+   if(date&&link)rows.push({url:link[1],title:link[2],excerpt:'Anthropic Claude announcement',publishedAt:plain(date)+' 00:00:00 GMT'});
+  }
   for(const match of body.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)){
    const date=match[2].match(/<time\b[^>]*>([\s\S]*?)<\/time>/i)?.[1];
    const title=match[2].match(/<(?:h[1-6]|span)\b[^>]*class="[^"]*__[^"]*title[^\"]*"[^>]*>([\s\S]*?)<\/(?:h[1-6]|span)>/i)?.[1];
@@ -74,7 +81,7 @@ export function parseGithubHtml(source,body){
 }
 
 export async function loadAdapter(source,fetcher=fetch,{cache,now=Date.now()}={}){
- const key=`adapters:v2:${source.id}`,started=Date.now();let httpStatus,apiStatus,transport=source.kind;
+ const key=`adapters:${source.kind==='anthropic'?'v3':'v2'}:${source.id}`,started=Date.now();let httpStatus,apiStatus,transport=source.kind;
  let previous;
  if(cache){try{previous=JSON.parse(await cache.get(key));}catch{} }
  if(previous?.nextAt>now)return {items:previous.items||[],check:{...previous.check,cached:true,nextCheckAt:new Date(previous.nextAt).toISOString()}};

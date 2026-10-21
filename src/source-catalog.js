@@ -348,7 +348,7 @@ export const sources = [
     "id": "catalog-34",
     "name": "Microsoft 365 Blog",
     "homepage": "https://www.microsoft.com/en-us/copilot/blog/feed/",
-    "url": "https://www.microsoft.com/en-us/microsoft-365/blog/feed/",
+    "url": "https://www.microsoft.com/en-us/copilot/blog/feed/",
     "categories": [
       "microsoft"
     ],
@@ -388,7 +388,7 @@ export const sources = [
     "id": "catalog-38",
     "name": "Microsoft Security Blog",
     "homepage": "https://www.microsoft.com/en-us/security/blog/feed/",
-    "url": "https://www.microsoft.com/en-us/security/blog/feed/",
+    "url": "https://www.microsoft.com/en-us/security/blog/?feed=rss2",
     "categories": [
       "microsoft"
     ],

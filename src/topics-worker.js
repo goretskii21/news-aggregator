@@ -8,17 +8,31 @@ export async function loadCatalogSource(source,fetcher=fetch){
  const started=Date.now();let httpStatus;
  try{
   const hostname=new URL(source.url).hostname;
-  // Canonical's feeds time out from Workers without explicit request headers.
-  const headers=['ubuntu.com','canonical.com'].includes(hostname)?{
+  // These publishers reject or stall Workers requests without explicit headers.
+  const headers=(['ubuntu.com','canonical.com','feeds.ign.com','www.playground.ru'].includes(hostname)||hostname==='microsoft.com'||hostname.endsWith('.microsoft.com'))?{
    'User-Agent':'news-aggregator/1.0',
-   'Accept':'application/rss+xml, application/json, text/xml;q=0.9, */*;q=0.8'
+   'Accept':'application/rss+xml, text/html;q=0.9, */*;q=0.8'
   }:undefined;
   const response=await fetcher(source.url,{signal:AbortSignal.timeout(15000),...(headers?{headers}:{})});httpStatus=response.status;
   if(!response.ok)return {items:[],check:{name:source.name,status:'http-error',httpStatus,durationMs:Date.now()-started}};
-  const body=await readResponseBody(response);
+  let body,bounded=false;
+  if(hostname==='www.playground.ru'&&response.body){
+   // This feed stalls from Workers after already delivering 20 complete items.
+   // Read only that bounded recent page and cancel the remainder, never parse
+   // an unfinished item or increase the network timeout indefinitely.
+   const reader=response.body.getReader(),decoder=new TextDecoder();body='';
+   try{
+    while(true){
+     const {done,value}=await reader.read();if(done){body+=decoder.decode();break;}
+     body+=decoder.decode(value,{stream:true});
+     if(body.length>2000000)throw new Error('Feed exceeds size limit');
+     if(parseFeed(body,source).length>=20){bounded=true;break;}
+    }
+   }finally{await reader.cancel().catch(()=>{});}
+  }else body=await readResponseBody(response);
   if(!looksLikeFeed(body))return {items:[],check:{name:source.name,status:'not-feed',httpStatus,durationMs:Date.now()-started}};
-  const items=parseFeed(body,source);
-  return {items,check:{name:source.name,status:items.length?'ok':'empty-feed',httpStatus,items:items.length,durationMs:Date.now()-started}};
+  const items=parseFeed(body,source).slice(0,bounded?20:undefined);
+  return {items,check:{name:source.name,status:items.length?'ok':'empty-feed',httpStatus,items:items.length,...(bounded?{bounded:true}:{}),durationMs:Date.now()-started}};
  }catch(error){
   return {items:[],check:{name:source.name,status:/Timeout|Abort/.test(error.name)?'timeout':'transport-or-parse-error',httpStatus,durationMs:Date.now()-started}};
  }
