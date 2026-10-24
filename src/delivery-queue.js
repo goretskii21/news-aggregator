@@ -7,7 +7,7 @@ export function slotFor(topic, now) {
   // Allow the eight topic messages to drain sequentially, with limited catch-up.
   return hours[topic]?.includes(Number(parts.hour)) && Number(parts.minute)<30 ? `${parts.year}-${parts.month}-${parts.day}/${parts.hour}:00` : null;
 }
-export const silentDigest=(topic,slot)=>topic!=='critical' && slot.endsWith('/00:00');
+export const silentDigest=(topic,slot,now)=>topic!=='critical' && (slot.endsWith('/00:00') || (slot.startsWith('batch/')&&now!==undefined&&Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Kyiv',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)))<6));
 export function emptyState(){return {pending:[],seen:{},slots:{},jobs:{},sent:0};}
 export function enqueue(state,groups,now){
   const inFlight=new Set(Object.values(state.jobs).flatMap(j=>j.items.map(i=>i.key)));
@@ -53,17 +53,25 @@ export function pendingBatch(state,topic){
   }
   return items;
 }
+export function nextRelease(state,topic,now){
+  const items=pendingBatch(state,topic);if(!items.length)return null;
+  const slot=slotFor(topic,now);
+  if(slot&&(topic==='critical'||!state.slots[topic+'/'+slot]))return {slot,items};
+  // Count only publishable stories after the existing source-diversity cap.
+  return topic!=='critical'&&items.length===10?{slot:`batch/${now}`,items}:null;
+}
 // Called only inside a serialized Durable Object. Persist before external side effects.
 export async function deliver(state,{now,save,send,enabled}){
   if(!enabled || (state.nextSendAt||0)>now)return;
-  for(const topic of Object.keys(routes)){
+  const ordinary=Object.keys(routes).filter(topic=>topic!=='critical');
+  const previous=ordinary.indexOf(state.lastCompletedTopic);
+  const order=previous<0?ordinary:[...ordinary.slice(previous+1),...ordinary.slice(0,previous+1)];
+  for(const topic of ['critical',...order]){
     let job=state.jobs[topic];
     if(!job){
-      const slot=slotFor(topic,now);
-      if(!slot || (topic!=='critical' && state.slots[topic+'/'+slot]))continue;
-      const items=pendingBatch(state,topic);
-      if(!items.length)continue;
-      job={slot,items,parts:messageParts(topic,items),partIndex:0,attempts:0,nextAt:now};state.jobs[topic]=job;
+      const release=nextRelease(state,topic,now);if(!release)continue;
+      const {slot,items}=release;
+      job={slot,items,parts:messageParts(topic,items),partIndex:0,attempts:0,nextAt:now,silent:silentDigest(topic,slot,now)};state.jobs[topic]=job;
       await save(state);
     }
     if(job.nextAt>now)continue;
@@ -73,14 +81,17 @@ export async function deliver(state,{now,save,send,enabled}){
     // Persist a recovery delay before the request: a crash must not cause an immediate storm.
     job.nextAt=now+60000;state.nextSendAt=now+10000;await save(state);
     let result;
-    try{result=await send(topic,part.text,{silent:silentDigest(topic,job.slot)});}catch{result={ok:false};}
+    try{result=await send(topic,part.text,{silent:job.silent??silentDigest(topic,job.slot,now)});}catch{result={ok:false};}
     if(result.ok){
       const keys=new Set(part.items.map(i=>i.key));
       state.pending=state.pending.filter(i=>!keys.has(i.key));
       for(const key of keys)state.seen[key]=now;
       job.partIndex++;state.sent++;
       if(job.partIndex===job.parts.length){
-        if(topic!=='critical')state.slots[topic+'/'+job.slot]=now;
+        if(topic!=='critical'){
+          if(!job.slot.startsWith('batch/'))state.slots[topic+'/'+job.slot]=now;
+          state.lastCompletedTopic=topic;
+        }
         delete state.jobs[topic];
       }else{job.attempts=0;job.nextAt=now+4000;delete job.lastError;}
     }else{

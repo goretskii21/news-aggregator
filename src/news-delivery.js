@@ -1,4 +1,4 @@
-import { emptyState, enqueue, deliver, routes, messageParts, pendingBatch, slotFor } from './delivery-queue.js';
+import { emptyState, enqueue, deliver, routes, messageParts, pendingBatch, nextRelease } from './delivery-queue.js';
 import {reviewPending} from './queue-review.js';
 import {validIcons,iconMessage} from './topic-icons.js';
 export class NewsDelivery {
@@ -56,11 +56,7 @@ export class NewsDelivery {
       const now=Date.now();
       // A successful send deletes its job, but other eligible topics still need
       // to drain within the same release window rather than wait ten minutes.
-      const ready=state.pending.some(item=>{
-        if(state.jobs[item.topic])return false;
-        const slot=slotFor(item.topic,now);
-        return slot&&(item.topic==='critical'||!state.slots[item.topic+'/'+slot]);
-      });
+      const ready=Object.keys(routes).some(topic=>!state.jobs[topic]&&nextRelease(state,topic,now));
       await this.ctx.storage.setAlarm(Math.max(now+60000,Math.min(now+(ready?60000:600000),...retries)));
     }else await this.ctx.storage.deleteAlarm();
   }

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/worker.js && node --check src/production-worker.js && node test/news-selection.mjs && node test/delivery-queue.mjs && node test/production-modes.mjs && node test/source-diagnostics.mjs && node test/queue-review.mjs && node test/multipart-digests.mjs && node test/source-adapters.mjs && node test/scheduled-drain.mjs && node test/topic-icons.mjs",
+    "check": "node --check src/worker.js && node --check src/production-worker.js && node test/news-selection.mjs && node test/delivery-queue.mjs && node test/production-modes.mjs && node test/source-diagnostics.mjs && node test/queue-review.mjs && node test/multipart-digests.mjs && node test/source-adapters.mjs && node test/scheduled-drain.mjs && node test/topic-icons.mjs && node test/threshold-digests.mjs",
     "smoke": "node test/worker-smoke.mjs",
     "test:selection": "node test/news-selection.mjs",
     "preview:sources": "node scripts/preview-sources.mjs",
