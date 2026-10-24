@@ -15,5 +15,6 @@ state=emptyState();enqueue(state,{ai:items('ai',20),git:items('git',10)},now);ca
 await deliver(state,{now,enabled:true,save,send});state=structuredClone(state);
 await deliver(state,{now:now+60000,enabled:true,save,send});assert.deepEqual(calls.map(c=>c.topic),['ai','git']);assert.equal(state.pending.length,10);
 await deliver(state,{now:now+120000,enabled:true,save,send});assert.equal(state.pending.length,0);
+assert.equal(silentDigest('ai','batch/day',Date.parse('2026-10-24T12:00:00Z')),true);
 assert.equal(silentDigest('ai','batch/123',Date.parse('2026-10-23T23:00:00Z')),true);assert.equal(silentDigest('critical','immediate',Date.parse('2026-10-23T23:00:00Z')),false);
 console.log('Threshold digests:9wait/10send, source cap, completed-slot independence, scheduled leftovers, round-robin and night silence passed.');

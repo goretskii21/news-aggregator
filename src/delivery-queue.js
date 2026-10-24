@@ -7,7 +7,7 @@ export function slotFor(topic, now) {
   // Allow the eight topic messages to drain sequentially, with limited catch-up.
   return hours[topic]?.includes(Number(parts.hour)) && Number(parts.minute)<30 ? `${parts.year}-${parts.month}-${parts.day}/${parts.hour}:00` : null;
 }
-export const silentDigest=(topic,slot,now)=>topic!=='critical' && (slot.endsWith('/00:00') || (slot.startsWith('batch/')&&now!==undefined&&Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Kyiv',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)))<6));
+export const silentDigest=topic=>topic!=='critical';
 export function emptyState(){return {pending:[],seen:{},slots:{},jobs:{},sent:0};}
 export function enqueue(state,groups,now){
   const inFlight=new Set(Object.values(state.jobs).flatMap(j=>j.items.map(i=>i.key)));
@@ -81,7 +81,7 @@ export async function deliver(state,{now,save,send,enabled}){
     // Persist a recovery delay before the request: a crash must not cause an immediate storm.
     job.nextAt=now+60000;state.nextSendAt=now+10000;await save(state);
     let result;
-    try{result=await send(topic,part.text,{silent:job.silent??silentDigest(topic,job.slot,now)});}catch{result={ok:false};}
+    try{result=await send(topic,part.text,{silent:silentDigest(topic,job.slot,now)});}catch{result={ok:false};}
     if(result.ok){
       const keys=new Set(part.items.map(i=>i.key));
       state.pending=state.pending.filter(i=>!keys.has(i.key));

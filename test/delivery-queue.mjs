@@ -56,7 +56,7 @@ try{
   Date.now=()=>at(`2026-10-20T${localTimes[topic]}:00Z`);
   await object.save(emptyState());
   await object.fetch(new Request('https://internal/',{method:'POST',body:JSON.stringify({[topic]:[item(topic)]})}));
-  assert.equal(payload.message_thread_id,id);assert.equal((await object.load()).pending.length,0);
+  assert.equal(payload.disable_notification,topic!=='critical');assert.equal(payload.message_thread_id,id);assert.equal((await object.load()).pending.length,0);
  }
   Date.now=()=>at('2026-10-19T21:00:00Z');
   await object.save(emptyState());
