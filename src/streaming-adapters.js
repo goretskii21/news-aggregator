@@ -49,7 +49,7 @@ export async function loadStreaming(source,fetcher,{cache,now=Date.now()}={}){
   // Persisted observation is required: a cold start must not announce the catalog.
   if(!cache)return {items:[],check:{name:source.name,status:'baseline-storage-required',items:0}};
   const retry=await cache.get(key+':retry','json');
-  if(retry?.nextAt>now)return {items:[],check:{name:source.name,status:'subscription-adapter-error',items:0,httpStatus:retry.httpStatus,retryAt:new Date(retry.nextAt).toISOString()}};
+  if(retry?.nextAt>now)return {items:[],check:{name:source.name,status:'subscription-adapter-error',items:0,httpStatus:retry.httpStatus,reason:retry.reason,retryAt:new Date(retry.nextAt).toISOString()}};
   const previous=await cache.get(key,'json');
   let state=previous;
   if(!state||now-state.checkedAt>=3600000){
@@ -68,8 +68,9 @@ export async function loadStreaming(source,fetcher,{cache,now=Date.now()}={}){
    await cache.put(key,JSON.stringify(state));
   }
   return {items:state.fresh||[],check:{name:source.name,status:'ok',items:state.fresh?.length||0,observed:Object.keys(state.seen).length,baseline:!previous,checkedAt:new Date(state.checkedAt).toISOString(),durationMs:Date.now()-started}};
- }catch{
-  if(cache)await cache.put(key+':retry',JSON.stringify({nextAt:now+3600000,httpStatus}),{expirationTtl:3600});
-  return {items:[],check:{name:source.name,status:'subscription-adapter-error',httpStatus,items:0,durationMs:Date.now()-started}};
+ }catch(error){
+  const reason=['Ukraine storefront not confirmed','Subscription collection missing','No verified subscription cards','Observation history capacity reached'].includes(error.message)?error.message:httpStatus&&httpStatus!==200?'http-error':'transport-or-schema-error';
+  if(cache)await cache.put(key+':retry',JSON.stringify({nextAt:now+3600000,httpStatus,reason}),{expirationTtl:3600});
+  return {items:[],check:{name:source.name,status:'subscription-adapter-error',httpStatus,reason,items:0,durationMs:Date.now()-started}};
  }
 }
