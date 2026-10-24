@@ -38,7 +38,7 @@ export async function loadCatalogSource(source,fetcher=fetch){
   return {items:[],check:{name:source.name,status:/Timeout|Abort/.test(error.name)?'timeout':'transport-or-parse-error',httpStatus,durationMs:Date.now()-started}};
  }
 }
-export async function collect(fetcher=fetch, now=Date.now(), {cache,adapters=adapterSources,streaming=streamingSources}={}){
+export async function collect(fetcher=fetch, now=Date.now(), {cache,adapters=adapterSources,streaming=streamingSources.filter(s=>s.enabled!==false)}={}){
  const items=[],checks=[];let next=0;
  await Promise.all(Array.from({length:6},async()=>{
   while(next<sources.length){const loaded=await loadCatalogSource(sources[next++],fetcher);items.push(...loaded.items);checks.push(loaded.check);}

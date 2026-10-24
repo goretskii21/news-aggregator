@@ -3,7 +3,9 @@ export const streamingSources = [
  {id:'sweet-subscription',name:'SWEET.TV',url:'https://sweet.tv/ua-ru/collections/7033-novinki-v-podpiske',kind:'sweet'},
  {id:'megogo-series-subscription',name:'MEGOGO',url:'https://megogo.net/ru/collection/new_series_sub',kind:'megogo'},
  {id:'kyivstar-available',name:'Киевстар ТВ',url:'https://tv.kyivstar.ua/ua/something-new',kind:'kyivstar',accessLabel:'Подписка или покупка',userAgent:'Googlebot'},
- {id:'prime-ua-subscription',name:'Prime Video',url:'https://www.primevideo.com/-/ru/storefront/subscription/prime',kind:'prime'}
+ {id:'prime-ua-subscription',name:'Prime Video',url:'https://www.primevideo.com/-/ru/storefront/subscription/prime',kind:'prime',enabled:false},
+ {id:'apple-ua-home',name:'Apple TV',url:'https://tv.apple.com/ua?l=ru',kind:'apple'},
+ {id:'apple-ua-movies',name:'Apple TV: фильмы',serviceName:'Apple TV',url:'https://tv.apple.com/ua/room/uts.room.movies-on-apple-tv?l=ru',kind:'apple'}
 ];
 const decode=s=>String(s||'').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/<[^>]*>/g,'').trim();
 export function parseSubscriptionCollection(source,html){
@@ -47,6 +49,25 @@ export function parseSubscriptionCollection(source,html){
    const text=decode(card),type=/серіал|сезон/iu.test(text)?'сериал':/фільм/iu.test(text)?'фильм':null;
    if(type)rows.push({title,url:new URL(href,source.url).href,type});
   }
+ }else if(source.kind==='apple'){
+  const data=JSON.parse(html.match(/<script[^>]*id="serialized-server-data"[^>]*>([\s\S]*?)<\/script>/)?.[1]||'null');
+  const pages=data?.data?.map(x=>x.data).filter(x=>Array.isArray(x?.shelves)&&x.channel?.id==='tvs.sbd.4000')||[];
+  if(!pages.length)throw Error('Subscription collection missing');
+  for(const page of pages){
+   const canonical=new URL(page.canonicalURL);
+   if(canonical.hostname!=='tv.apple.com'||!/^\/ua(?:\/|$)/.test(canonical.pathname))throw Error('Ukraine storefront not confirmed');
+   for(const shelf of page.shelves)for(const item of shelf.items||[]){
+    if(item.provider?.name!=='Apple TV'||!['Movie','Show'].includes(item.type)||!item.title)continue;
+    const badge=String(item.badge||'').trim();
+    if(!/^(?:Новое|Новый сезон|Новый сериал|New|New Season|New Series)$/iu.test(badge))continue;
+    if(!item.buttons?.some(b=>b.action?.routeName==='subscribe'&&b.action.modalParams?.queryParams?.brandId==='tvs.sbd.4000'))continue;
+    const target=item.segue?.destination,url=item.segue?.url;
+    if(target?.storefront!=='ua'||!url||!/^https:\/\/tv\.apple\.com\/ua\/(?:movie|show)\//.test(url))continue;
+    const u=new URL(url);u.search='?l=ru';
+    rows.push({title:item.title,url:u.href,type:item.type==='Movie'?'фильм':/сезон|season/iu.test(badge)?'новый сезон сериала':'сериал'});
+   }
+  }
+  if(!rows.length)return [];
  }else if(source.kind==='prime'){
   const json=id=>JSON.parse(html.match(new RegExp('<script[^>]*id="'+id+'"[^>]*>([\\s\\S]*?)<\\/script>'))?.[1]||'null');
   const context=json('dv-web-global-store-data')?.RequestContext;
@@ -91,7 +112,7 @@ export async function loadStreaming(source,fetcher,{cache,now=Date.now()}={}){
    const rows=parseSubscriptionCollection(source,await response.text());
    const seen={...(previous?.seen||{})},fresh=(previous?.fresh||[]).filter(i=>Date.parse(i.publishedAt)>=now-48*3600000);
    for(const row of rows){
-    if(previous&&!seen[row.url])fresh.push({source:source.name,role:'official',categories:['watch'],title:`На ${source.name} появился ${row.type} «${row.title}».${source.accessLabel?' '+source.accessLabel+'.':''}`,url:row.url,publishedAt:new Date(now).toISOString(),excerpt:'Новое наблюдаемое добавление в украинскую подборку; точное время добавления неизвестно.'});
+    if(previous&&!seen[row.url])fresh.push({source:source.name,role:'official',categories:['watch'],title:`На ${source.serviceName||source.name} появился ${row.type} «${row.title}».${source.accessLabel?' '+source.accessLabel+'.':''}`,url:row.url,publishedAt:new Date(now).toISOString(),excerpt:'Новое наблюдаемое добавление в украинскую подборку; точное время добавления неизвестно.'});
     seen[row.url]=now;
    }
    // Keep observed URLs across carousel reorder/removal and Worker deployments.
