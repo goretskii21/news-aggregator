@@ -2,7 +2,8 @@
 export const streamingSources = [
  {id:'sweet-subscription',name:'SWEET.TV',url:'https://sweet.tv/ua-ru/collections/7033-novinki-v-podpiske',kind:'sweet'},
  {id:'megogo-series-subscription',name:'MEGOGO',url:'https://megogo.net/ru/collection/new_series_sub',kind:'megogo'},
- {id:'kyivstar-available',name:'Киевстар ТВ',url:'https://tv.kyivstar.ua/ua/something-new',kind:'kyivstar',accessLabel:'Подписка или покупка',userAgent:'Googlebot'}
+ {id:'kyivstar-available',name:'Киевстар ТВ',url:'https://tv.kyivstar.ua/ua/something-new',kind:'kyivstar',accessLabel:'Подписка или покупка',userAgent:'Googlebot'},
+ {id:'prime-ua-subscription',name:'Prime Video',url:'https://www.primevideo.com/-/ru/storefront/subscription/prime',kind:'prime'}
 ];
 const decode=s=>String(s||'').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/<[^>]*>/g,'').trim();
 export function parseSubscriptionCollection(source,html){
@@ -46,6 +47,26 @@ export function parseSubscriptionCollection(source,html){
    const text=decode(card),type=/серіал|сезон/iu.test(text)?'сериал':/фільм/iu.test(text)?'фильм':null;
    if(type)rows.push({title,url:new URL(href,source.url).href,type});
   }
+ }else if(source.kind==='prime'){
+  const json=id=>JSON.parse(html.match(new RegExp('<script[^>]*id="'+id+'"[^>]*>([\\s\\S]*?)<\\/script>'))?.[1]||'null');
+  const context=json('dv-web-global-store-data')?.RequestContext;
+  if(context?.currentTerritory!=='UA'||context?.recordTerritory!=='UA')throw Error('Ukraine storefront not confirmed');
+  const data=json('dv-web-page-hydration-data');
+  const containers=data?.init?.preparations?.body?.containers;
+  if(!Array.isArray(containers)||!containers.some(c=>Array.isArray(c.entities)))throw Error('Subscription collection missing');
+  for(const container of containers)for(const item of container.entities||[]){
+   const cue=item.entitlementCues;
+   // Explicit Prime offer, not a generic free trial for another paid channel.
+   if(!/(?:доступом к Prime|Included with Prime|trial (?:of|to) Prime)/iu.test(cue?.focusMessage?.message||''))continue;
+   const badge=cue?.titleMetadataBadge?.message||'';
+   if(!/НОВЫЙ ФИЛЬМ|НОВЫЙ СЕРИАЛ|НОВЫЕ СЕРИАЛЫ|НОВЫЙ СЕЗОН|ПРЕМЬЕРА СЕЗОНА|НЕДАВНО ДОБАВЛЕНО|NEW MOVIE|NEW SERIES|NEW SEASON|RECENTLY ADDED|SEASON PREMIERE/iu.test(badge))continue;
+   const type=item.entityType==='Movie'?'фильм':['TV Show','Season'].includes(item.entityType)?'сериал':null;
+   const id=item.link?.url?.match(/^\/(?:-\/ru\/)?detail\/([A-Z0-9]{10,32})(?:[/?]|$)/)?.[1];
+   if(!type||!id||!item.title)continue;
+   rows.push({title:item.title,url:'https://www.primevideo.com/detail/'+id,type});
+  }
+  // A valid Ukrainian subscription page may contain no current novelty badges.
+  if(!rows.length)return [];
  }
  const host=new URL(source.url).hostname,seen=new Set();
  const result=rows.filter(row=>{
