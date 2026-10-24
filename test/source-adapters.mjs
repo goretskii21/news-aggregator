@@ -60,10 +60,10 @@ const integrationFetch=async url=>{
  if(String(url).includes('cisa.gov'))return Response.json({vulnerabilities:[]});
  return new Response('<rss><channel><item><title>Docker update</title><link>https://example.com/docker</link><pubDate>Tue, 20 Oct 2026 10:00:00 GMT</pubDate></item></channel></rss>');
 };
-const integrated=await collect(integrationFetch,Date.parse('2026-10-20T13:00:00Z'),{cache});
-assert.equal(integrated.checks.length,84);assert.equal(integrated.failures.length,0);assert.equal(adapterRequests,9);
+const integrated=await collect(integrationFetch,Date.parse('2026-10-20T13:00:00Z'),{cache,streaming:[]});
+assert.equal(integrated.checks.length,88);assert.equal(integrated.failures.length,0);assert.equal(adapterRequests,9);
 assert.ok(integrated.selection.groups.games.some(i=>i.source==='AION 2 official announcements'));
-await collect(integrationFetch,Date.parse('2026-10-20T13:10:00Z'),{cache});assert.equal(adapterRequests,9);
+await collect(integrationFetch,Date.parse('2026-10-20T13:10:00Z'),{cache,streaming:[]});assert.equal(adapterRequests,9);
 console.log('Adapters: public payloads, dates/links, withdrawn advisories, conservative Critical, schema errors, hourly cache and Retry-After passed.');
 
 const listing=await readFile(new URL('fixtures/adapters/anthropic-listing.html',import.meta.url),'utf8');const currentAnthropic=parseAdapter(source('anthropic'),listing);assert.equal(currentAnthropic.length,3);assert.ok(currentAnthropic.every(i=>i.url.startsWith('https://www.anthropic.com/news/')&&Number.isFinite(Date.parse(i.publishedAt))));assert.equal(parseAdapter(source('anthropic'),listing.replace(/<time[^>]*>[\s\S]*?<\/time>/g,'')).length,0);assert.equal(parseAdapter(source('anthropic'),listing+listing).length,3);

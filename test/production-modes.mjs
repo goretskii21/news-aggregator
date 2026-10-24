@@ -5,7 +5,7 @@ globalThis.fetch=async url=>String(url).includes('cisa.gov')?Response.json({vuln
 try{
  for(const mode of ['legacy','shadow','topics']){
   let enqueues=0,kvWrites=0;const pending=[];
-  const env={NEWS_PIPELINE_MODE:mode,TELEGRAM_DELIVERY_ENABLED:'false',NEWS_CACHE:{get:async()=>null,put:async(key)=>{if(!key.startsWith("adapters:"))kvWrites++;}},NEWS_DELIVERY:{idFromName:()=>1,get:()=>({fetch:async(url,options)=>{enqueues++;const groups=JSON.parse(options.body);assert.ok(groups.ai);return Response.json({pending:groups.ai.length,sent:0});}})}};
+  const env={NEWS_PIPELINE_MODE:mode,TELEGRAM_DELIVERY_ENABLED:'false',NEWS_CACHE:{get:async()=>null,put:async(key)=>{if(!key.startsWith("adapters:")&&!key.startsWith("streaming:"))kvWrites++;}},NEWS_DELIVERY:{idFromName:()=>1,get:()=>({fetch:async(url,options)=>{enqueues++;const groups=JSON.parse(options.body);assert.ok(groups.ai);return Response.json({pending:groups.ai.length,sent:0});}})}};
   await worker.scheduled({},env,{waitUntil:p=>pending.push(p)});await Promise.all(pending);
   assert.equal(enqueues,mode==='legacy'?0:1);assert.equal(kvWrites,mode==='shadow'?2:1);
  }

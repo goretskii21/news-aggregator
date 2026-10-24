@@ -1,8 +1,8 @@
 import { topics, canonicalUrl } from './news-selection.js';
-export const routes = {critical:3,ai:5,git:7,containers:9,cloud:11,microsoft:13,linux:15,apple:17,games:19};
+export const routes = {critical:3,ai:5,git:7,containers:9,cloud:11,microsoft:13,linux:15,apple:17,games:19,cinema:233,watch:234};
 export const hours = Object.fromEntries(Object.keys(routes).filter(t=>t!=='critical').map(t=>[t,[0,6,12,18]]));
 export function slotFor(topic, now) {
-  if(topic==='critical')return 'immediate';
+  if(topic==='critical'||topic==='watch')return 'immediate';
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Kyiv',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(now)).map(p=>[p.type,p.value]));
   // Allow the eight topic messages to drain sequentially, with limited catch-up.
   return hours[topic]?.includes(Number(parts.hour)) && Number(parts.minute)<30 ? `${parts.year}-${parts.month}-${parts.day}/${parts.hour}:00` : null;
@@ -47,7 +47,7 @@ export function messageParts(topic,items){
 export function pendingBatch(state,topic){
   const items=[],sourceCounts=new Map();
   for(const item of state.pending.filter(i=>i.topic===topic)){
-    if(items.length>=(topic==='critical'?1:10))break;
+    if(items.length>=((topic==='critical'||topic==='watch')?1:10))break;
     if((sourceCounts.get(item.source)||0)>=3)continue;
     if(messageFor(topic,[item]).length<=3800){items.push(item);sourceCounts.set(item.source,(sourceCounts.get(item.source)||0)+1);}
   }
@@ -56,7 +56,7 @@ export function pendingBatch(state,topic){
 export function nextRelease(state,topic,now){
   const items=pendingBatch(state,topic);if(!items.length)return null;
   const slot=slotFor(topic,now);
-  if(slot&&(topic==='critical'||!state.slots[topic+'/'+slot]))return {slot,items};
+  if(slot&&(topic==='critical'||topic==='watch'||!state.slots[topic+'/'+slot]))return {slot,items};
   // Count only publishable stories after the existing source-diversity cap.
   return topic!=='critical'&&items.length===10?{slot:`batch/${now}`,items}:null;
 }

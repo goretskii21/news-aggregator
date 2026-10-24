@@ -13,10 +13,10 @@ try{
  let object=new NewsDelivery({storage},{TELEGRAM_DELIVERY_ENABLED:'true',TG_NEWS_BOT:'fixture',TELEGRAM_GROUP_CHAT_ID:'-100123'});
  await object.save(state);await object.process(state);
  for(let i=0;i<25;i++){
-  const saved=await object.load();if(Object.keys(saved.slots).length===8)break;
+  const saved=await object.load();if(Object.keys(saved.slots).length===Object.keys(routes).length-1)break;
   assert.equal(alarm,now+60000,'eligible releases must continue every minute');
   now=alarm;object=new NewsDelivery({storage},object.env);await object.alarm();
  }
- const saved=await object.load();assert.equal(Object.keys(saved.slots).length,8);assert.equal(new Set(calls.map(c=>c.message_thread_id)).size,8);assert.ok(now<Date.parse('2026-10-20T15:30:00Z'));assert.equal(saved.pending.length,1);assert.equal(alarm,now+600000,'completed slot waits despite leftover stories');
- console.log('Scheduled drain: all eight topics and multipart AI complete within one window across object restarts; leftovers do not repeat.');
+ const saved=await object.load();assert.equal(Object.keys(saved.slots).length,Object.keys(routes).length-1);assert.equal(new Set(calls.map(c=>c.message_thread_id)).size,Object.keys(routes).length-1);assert.ok(now<Date.parse('2026-10-20T15:30:00Z'));assert.equal(saved.pending.length,1);assert.equal(alarm,now+600000,'completed slot waits despite leftover stories');
+ console.log('Scheduled drain: all ordinary topics and multipart AI complete within one window across object restarts; leftovers do not repeat.');
 }finally{Date.now=originalNow;globalThis.fetch=originalFetch;}

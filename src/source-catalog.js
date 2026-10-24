@@ -1,5 +1,9 @@
 // Audited candidate feeds; isolated from the existing production worker.
 export const sources = [
+ {id:'cinema-variety',name:'Variety — Film',homepage:'https://variety.com/v/film/',url:'https://variety.com/v/film/feed/',categories:['cinema'],role:'editorial'},
+ {id:'cinema-slashfilm',name:'/Film',homepage:'https://www.slashfilm.com/',url:'https://www.slashfilm.com/feed/',categories:['cinema'],role:'editorial'},
+ {id:'cinema-thr',name:'The Hollywood Reporter — Movie News',homepage:'https://www.hollywoodreporter.com/c/movies/movie-news/',url:'https://www.hollywoodreporter.com/c/movies/movie-news/feed/',categories:['cinema'],role:'editorial'},
+ {id:'cinema-deadline',name:'Deadline — Film',homepage:'https://deadline.com/v/film/',url:'https://deadline.com/v/film/feed/',categories:['cinema'],role:'editorial'},
   {
     "id": "catalog-0",
     "name": "Ubuntu Security Notices",

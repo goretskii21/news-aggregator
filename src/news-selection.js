@@ -3,7 +3,7 @@ import {editorialExclusion} from './editorial-policy.js';
 export const topics = {
   critical: '🚨 Critical / Security', ai: '🤖 AI', git: '🦊 GitLab / GitHub',
   containers: '🐳 Docker / Kubernetes', cloud: '☁️ Cloud', microsoft: '🪟 Microsoft',
-  linux: '🐧 Linux / Networking', apple: '🍎 Apple', games: '🎮 Games'
+  linux: '🐧 Linux / Networking', apple: '🍎 Apple', games: '🎮 Games', cinema:'🎬 Кино', watch:'📺 Что посмотреть'
 };
 const rules = {
   ai: /\b(?:OpenAI|ChatGPT|Claude|Anthropic|Gemini|DeepMind|Hugging Face|Copilot|LLM|GPT[- ]?\d|AI)\b|нейросет|искусственн.{0,12}интеллект/iu,
@@ -73,6 +73,7 @@ export function selectNews(items, sources, { now = Date.now(), hours = 48 } = {}
     const hits = ordinary.filter(c=>rules[c]?.test(ordinary.length>1?title:text));
     // Product-specific sources can contain titles without the product name.
     const topic = hits[0] || (ordinary.length===1 ? ordinary[0] : null);
+    if(topic==='cinema' && (!/film|movie|trailer|cinema|box.office|фильм|кино|трейлер|прокат|съемк|съёмк/iu.test(title) || /dating|divorce|married|wedding|pregnan|boyfriend|girlfriend|red.carpet|relationship|развод|свадьб|беремен|личн.{0,8}жизн|роман.{0,10}акт/iu.test(title))){reject('outside-cinema-focus');continue;}
     if (!topic) { reject('no-topic-match'); continue; }
     if (topic==='apple' && !/macOS|iOS|iPadOS|MacBook|Apple Silicon|Mac mini|Mac Studio|Mac Pro|Apple Intelligence|Xcode|Safari|WebKit|\bM\d\b/iu.test(title)) { reject('outside-apple-focus'); continue; }
     if (topic==='ai' && /хакер.*ИИ|army.{0,30}AI|AI.{0,30}army/iu.test(title)) { reject('off-topic-ai-mention'); continue; }

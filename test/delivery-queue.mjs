@@ -39,8 +39,8 @@ const storage={get:async k=>structuredClone(map.get(k)),put:async(k,v)=>map.set(
 const ctx={storage},env={TELEGRAM_DELIVERY_ENABLED:'false'};
 let object=new NewsDelivery(ctx,env);
 await Promise.all(Object.keys(routes).map(topic=>object.fetch(new Request('https://internal/',{method:'POST',body:JSON.stringify({[topic]:[item(topic)]})}))));
-assert.equal((await object.load()).pending.length,9);
-object=new NewsDelivery(ctx,env);assert.equal((await object.load()).pending.length,9);assert.equal(alarm,null);
+assert.equal((await object.load()).pending.length,Object.keys(routes).length);
+object=new NewsDelivery(ctx,env);assert.equal((await object.load()).pending.length,Object.keys(routes).length);assert.equal(alarm,null);
 const big=emptyState();enqueue(big,{games:Array.from({length:1000},(_,i)=>({...item('long'+i),title:'Я'.repeat(230)}))},now);
 await object.save(big);assert.equal((await object.load()).pending.length,1000);
 for(const value of map.values())if(typeof value==='string')assert.ok(Buffer.byteLength(value)<128*1024);
@@ -73,6 +73,6 @@ let feedRequests=0;
 const collected=await collect(async url=>{
  if(String(url).includes('cisa.gov'))return Response.json({vulnerabilities:[]});
  feedRequests++;return new Response(`<rss><channel><item><title>Docker stable release</title><link>https://example.com/release</link><pubDate>Tue, 20 Oct 2026 03:00:00 GMT</pubDate></item></channel></rss>`);
-},now,{adapters:[]});
-assert.equal(feedRequests,74);assert.equal(collected.failures.length,0);assert.equal(Object.values(collected.selection.groups).flat().length,1);
-console.log('Queue, retries, restart, concurrency, pacing, Kyiv DST, routing and 74-feed collector checks passed (mock Telegram only).');
+},now,{adapters:[],streaming:[]});
+assert.equal(feedRequests,78);assert.equal(collected.failures.length,0);assert.equal(Object.values(collected.selection.groups).flat().length,1);
+console.log('Queue, retries, restart, concurrency, pacing, Kyiv DST, routing and 78-feed collector checks passed (mock Telegram only).');

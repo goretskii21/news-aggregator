@@ -2,6 +2,7 @@ import { parseFeed,readResponseBody,looksLikeFeed } from './worker.js';
 import { sources } from './source-catalog.js';
 import { selectNews } from './news-selection.js';
 import {adapterSources,loadAdapter} from './source-adapters.js';
+import {streamingSources,loadStreaming} from './streaming-adapters.js';
 import {syncTopicIcons} from './topic-icons.js';
 export { NewsDelivery } from './news-delivery.js';
 export async function loadCatalogSource(source,fetcher=fetch){
@@ -37,7 +38,7 @@ export async function loadCatalogSource(source,fetcher=fetch){
   return {items:[],check:{name:source.name,status:/Timeout|Abort/.test(error.name)?'timeout':'transport-or-parse-error',httpStatus,durationMs:Date.now()-started}};
  }
 }
-export async function collect(fetcher=fetch, now=Date.now(), {cache,adapters=adapterSources}={}){
+export async function collect(fetcher=fetch, now=Date.now(), {cache,adapters=adapterSources,streaming=streamingSources}={}){
  const items=[],checks=[];let next=0;
  await Promise.all(Array.from({length:6},async()=>{
   while(next<sources.length){const loaded=await loadCatalogSource(sources[next++],fetcher);items.push(...loaded.items);checks.push(loaded.check);}
@@ -54,7 +55,8 @@ export async function collect(fetcher=fetch, now=Date.now(), {cache,adapters=ada
  await Promise.all(Array.from({length:3},async()=>{
   while(adapterNext<adapters.length){const loaded=await loadAdapter(adapters[adapterNext++],fetcher,{cache,now});items.push(...loaded.items);checks.push(loaded.check);}
  }));
- return {selection:selectNews(items,new Map([...sources,...adapters].map(s=>[s.name,s])),{now,hours:48}),failures:checks.filter(c=>!['ok','empty-source'].includes(c.status)).map(c=>c.name),checks};
+ for(const source of streaming){const loaded=await loadStreaming(source,fetcher,{cache,now});items.push(...loaded.items);checks.push(loaded.check);}
+ return {selection:selectNews(items,new Map([...sources,...adapters,...streaming.map(s=>({...s,categories:['watch'],role:'official'}))].map(s=>[s.name,s])),{now,hours:48}),failures:checks.filter(c=>!['ok','empty-source'].includes(c.status)).map(c=>c.name),checks};
 }
 export default {
  async fetch(){return new Response('Not Found',{status:404});},
