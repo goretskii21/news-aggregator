@@ -1,7 +1,8 @@
 // Public Ukrainian subscription collections. No account cookies or paid APIs.
 export const streamingSources = [
  {id:'sweet-subscription',name:'SWEET.TV',url:'https://sweet.tv/ua-ru/collections/7033-novinki-v-podpiske',kind:'sweet'},
- {id:'megogo-series-subscription',name:'MEGOGO',url:'https://megogo.net/ru/collection/new_series_sub',kind:'megogo'}
+ {id:'megogo-series-subscription',name:'MEGOGO',url:'https://megogo.net/ru/collection/new_series_sub',kind:'megogo'},
+ {id:'kyivstar-available',name:'Киевстар ТВ',url:'https://tv.kyivstar.ua/ua/something-new',kind:'kyivstar',accessLabel:'Подписка или покупка',userAgent:'Googlebot'}
 ];
 const decode=s=>String(s||'').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/<[^>]*>/g,'').trim();
 export function parseSubscriptionCollection(source,html){
@@ -35,6 +36,16 @@ export function parseSubscriptionCollection(source,html){
    if(!/data-vod-rule="svod"/.test(tag))continue;
    rows.push({title:decode(tag.match(/data-title="([^"]+)"/)?.[1]),url:card.match(/href="(https:\/\/megogo.net\/ru\/view\/[^"?#]+)"/)?.[1],type:'сериал'});
   }
+ }else if(source.kind==='kyivstar'){
+  const section=html.match(/<section\b[^>]*data-testid="new-on-ks-tv-available"[^>]*>([\s\S]*?)<\/section>/)?.[1];
+  if(!section||!section.includes('Вже на платформі'))throw Error('Available collection missing');
+  for(const m of section.matchAll(/<article\b[^>]*data-testid="available-card"[^>]*>([\s\S]*?)<\/article>/g)){
+   const card=m[1],title=decode(card.match(/<h3\b[^>]*>([\s\S]*?)<\/h3>/)?.[1]);
+   const href=card.match(/href="(\/ua\/movie\/[a-f0-9]{24}[^"?#]*)"/)?.[1];
+   if(!href)continue;
+   const text=decode(card),type=/серіал|сезон/iu.test(text)?'сериал':/фільм/iu.test(text)?'фильм':null;
+   if(type)rows.push({title,url:new URL(href,source.url).href,type});
+  }
  }
  const host=new URL(source.url).hostname,seen=new Set();
  const result=rows.filter(row=>{
@@ -53,13 +64,13 @@ export async function loadStreaming(source,fetcher,{cache,now=Date.now()}={}){
   const previous=await cache.get(key,'json');
   let state=previous;
   if(!state||now-state.checkedAt>=3600000){
-   const response=await fetcher(source.url,{headers:{'User-Agent':'news-aggregator/1.0','Accept':'text/html'},signal:AbortSignal.timeout(15000)});
+   const response=await fetcher(source.url,{headers:{'User-Agent':source.userAgent||'news-aggregator/1.0','Accept':'text/html'},signal:AbortSignal.timeout(15000)});
    httpStatus=response.status;
    if(!response.ok)throw Error('HTTP '+response.status);
    const rows=parseSubscriptionCollection(source,await response.text());
    const seen={...(previous?.seen||{})},fresh=(previous?.fresh||[]).filter(i=>Date.parse(i.publishedAt)>=now-48*3600000);
    for(const row of rows){
-    if(previous&&!seen[row.url])fresh.push({source:source.name,role:'official',categories:['watch'],title:`На ${source.name} появился ${row.type} «${row.title}».`,url:row.url,publishedAt:new Date(now).toISOString(),excerpt:'Новое наблюдаемое добавление в украинскую подборку подписки; точное время добавления неизвестно.'});
+    if(previous&&!seen[row.url])fresh.push({source:source.name,role:'official',categories:['watch'],title:`На ${source.name} появился ${row.type} «${row.title}».${source.accessLabel?' '+source.accessLabel+'.':''}`,url:row.url,publishedAt:new Date(now).toISOString(),excerpt:'Новое наблюдаемое добавление в украинскую подборку; точное время добавления неизвестно.'});
     seen[row.url]=now;
    }
    // Keep observed URLs across carousel reorder/removal and Worker deployments.
@@ -69,7 +80,7 @@ export async function loadStreaming(source,fetcher,{cache,now=Date.now()}={}){
   }
   return {items:state.fresh||[],check:{name:source.name,status:'ok',items:state.fresh?.length||0,observed:Object.keys(state.seen).length,baseline:!previous,checkedAt:new Date(state.checkedAt).toISOString(),durationMs:Date.now()-started}};
  }catch(error){
-  const reason=['Ukraine storefront not confirmed','Subscription collection missing','No verified subscription cards','Observation history capacity reached'].includes(error.message)?error.message:httpStatus&&httpStatus!==200?'http-error':'transport-or-schema-error';
+  const reason=['Ukraine storefront not confirmed','Subscription collection missing','Available collection missing','No verified subscription cards','Observation history capacity reached'].includes(error.message)?error.message:httpStatus&&httpStatus!==200?'http-error':'transport-or-schema-error';
   if(cache)await cache.put(key+':retry',JSON.stringify({nextAt:now+3600000,httpStatus,reason}),{expirationTtl:3600});
   return {items:[],check:{name:source.name,status:'subscription-adapter-error',httpStatus,reason,items:0,durationMs:Date.now()-started}};
  }
